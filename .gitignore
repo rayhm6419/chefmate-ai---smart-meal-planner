@@ -29,3 +29,9 @@ ios/App/Podfile.lock
 ios/App/App.xcworkspace
 ios/App/build
 ios/DerivedData
+
+# Java / Maven build output
+backend/target/
+
+# Local Spring Boot config (do not commit secrets)
+backend/src/main/resources/application.yml
