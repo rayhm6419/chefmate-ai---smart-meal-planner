@@ -1,6 +1,57 @@
 import UIKit
 import Capacitor
 
+struct APIConfig {
+    static let baseURL = URL(string: "http://127.0.0.1:8080")!
+}
+
+struct HealthResponse: Decodable {
+    let status: String
+}
+
+final class HealthService {
+    static let shared = HealthService()
+    private let session: URLSession
+
+    private init(session: URLSession = .shared) {
+        self.session = session
+    }
+
+    func testBackendConnection() {
+        let url = APIConfig.baseURL.appendingPathComponent("api/health")
+        let request = URLRequest(url: url, timeoutInterval: 5)
+
+        session.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("Health check failed: \(error.localizedDescription)")
+                return
+            }
+
+            guard let http = response as? HTTPURLResponse else {
+                print("Health check failed: no HTTPURLResponse")
+                return
+            }
+
+            guard (200...299).contains(http.statusCode) else {
+                print("Health check failed: status \(http.statusCode)")
+                return
+            }
+
+            guard let data = data else {
+                print("Health check failed: no data")
+                return
+            }
+
+            do {
+                let decoded = try JSONDecoder().decode(HealthResponse.self, from: data)
+                print("Health check success: status=\(decoded.status)")
+            } catch {
+                print("Health check decode error: \(error.localizedDescription)")
+            }
+        }.resume()
+    }
+}
+
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
@@ -8,6 +59,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        // Kick off a lightweight backend health check on launch.
+        HealthService.shared.testBackendConnection()
         return true
     }
 
@@ -27,6 +80,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func applicationDidBecomeActive(_ application: UIApplication) {
         // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+        // Safe to call multiple times as the request is lightweight.
+        HealthService.shared.testBackendConnection()
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

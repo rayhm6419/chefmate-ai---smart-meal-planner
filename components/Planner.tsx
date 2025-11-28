@@ -14,6 +14,11 @@ interface PlannerProps {
 export const Planner: React.FC<PlannerProps> = ({ mealPlan, selectedDate, onSelectDate, onUpdatePlan }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const parseLocalDate = (dateStr: string) => {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
+
   const weekDates = useMemo(() => {
     const dates: DateInfo[] = [];
     const curr = new Date();
@@ -23,7 +28,10 @@ export const Planner: React.FC<PlannerProps> = ({ mealPlan, selectedDate, onSele
       const next = new Date(curr.getTime());
       next.setDate(first + i);
       
-      const iso = next.toISOString().split('T')[0];
+      const year = next.getFullYear();
+      const month = String(next.getMonth() + 1).padStart(2, '0');
+      const day = String(next.getDate()).padStart(2, '0');
+      const iso = `${year}-${month}-${day}`;
       const dayName = DAYS_OF_WEEK[i];
       const display = `${next.getMonth() + 1}/${next.getDate()}`;
 
@@ -38,6 +46,9 @@ export const Planner: React.FC<PlannerProps> = ({ mealPlan, selectedDate, onSele
   };
 
   const currentDayPlan = mealPlan[selectedDate] || {};
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const selectedLocalDate = selectedDate ? parseLocalDate(selectedDate) : today;
 
   return (
     <div className="bg-white border-b border-slate-100 z-30 relative">
@@ -45,7 +56,7 @@ export const Planner: React.FC<PlannerProps> = ({ mealPlan, selectedDate, onSele
         {weekDates.map((date) => {
           const isSelected = selectedDate === date.fullDate;
           const hasPlan = mealPlan[date.fullDate]?.dinner || mealPlan[date.fullDate]?.lunch;
-          const isToday = new Date().toISOString().split('T')[0] === date.fullDate;
+          const isToday = todayStr === date.fullDate;
           
           return (
             <button
@@ -77,7 +88,7 @@ export const Planner: React.FC<PlannerProps> = ({ mealPlan, selectedDate, onSele
           <div className="relative w-full sm:w-[400px] bg-white rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl p-6 animate-in slide-in-from-bottom duration-300">
              <div className="flex justify-between items-center mb-6">
                 <h3 className="font-bold text-xl text-slate-900">
-                  Plan for {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                  Plan for {selectedLocalDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                 </h3>
                 <button onClick={() => setIsModalOpen(false)} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200">
                   <X className="w-5 h-5 text-slate-500" />

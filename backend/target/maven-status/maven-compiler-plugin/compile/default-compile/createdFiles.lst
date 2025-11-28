@@ -1,0 +1,11 @@
+com/chefmate/backend/entity/MealPlan.class
+com/chefmate/backend/ChefMateApplication.class
+com/chefmate/backend/repository/MealPlanRepository.class
+com/chefmate/backend/health/HealthController.class
+com/chefmate/backend/mealplan/UpdateMealPlansRequest.class
+com/chefmate/backend/entity/MealType.class
+com/chefmate/backend/mealplan/MealPlanService.class
+com/chefmate/backend/DemoUsers.class
+com/chefmate/backend/mealplan/GetMealPlansResponse.class
+com/chefmate/backend/mealplan/MealPlanController.class
+com/chefmate/backend/mealplan/MealPlanDto.class

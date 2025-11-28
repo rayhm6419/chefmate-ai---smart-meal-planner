@@ -2,10 +2,15 @@ server:
   port: 8080
 
 spring:
+  data:
+    mongodb:
+      # Replace <db_password> with your Atlas user's password (URL-encode special characters).
+      uri: "mongodb+srv://raymondlhm:6419QWer%401@master.sdd7pb5.mongodb.net/chelf?retryWrites=true&w=majority&appName=master"
   datasource:
-    url: jdbc:postgresql://localhost:5432/chefmate
-    username: your_db_username
-    password: your_db_password
+    url: jdbc:h2:mem:chefmate;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
   jpa:
     hibernate:
       ddl-auto: update

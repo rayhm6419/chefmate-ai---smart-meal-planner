@@ -1,0 +1,11 @@
+/Users/aoshine/Desktop/chefmate-ai---smart-meal-planner/backend/src/main/java/com/chefmate/backend/ChefMateApplication.java
+/Users/aoshine/Desktop/chefmate-ai---smart-meal-planner/backend/src/main/java/com/chefmate/backend/DemoUsers.java
+/Users/aoshine/Desktop/chefmate-ai---smart-meal-planner/backend/src/main/java/com/chefmate/backend/entity/MealPlan.java
+/Users/aoshine/Desktop/chefmate-ai---smart-meal-planner/backend/src/main/java/com/chefmate/backend/entity/MealType.java
+/Users/aoshine/Desktop/chefmate-ai---smart-meal-planner/backend/src/main/java/com/chefmate/backend/health/HealthController.java
+/Users/aoshine/Desktop/chefmate-ai---smart-meal-planner/backend/src/main/java/com/chefmate/backend/mealplan/GetMealPlansResponse.java
+/Users/aoshine/Desktop/chefmate-ai---smart-meal-planner/backend/src/main/java/com/chefmate/backend/mealplan/MealPlanController.java
+/Users/aoshine/Desktop/chefmate-ai---smart-meal-planner/backend/src/main/java/com/chefmate/backend/mealplan/MealPlanDto.java
+/Users/aoshine/Desktop/chefmate-ai---smart-meal-planner/backend/src/main/java/com/chefmate/backend/mealplan/MealPlanService.java
+/Users/aoshine/Desktop/chefmate-ai---smart-meal-planner/backend/src/main/java/com/chefmate/backend/mealplan/UpdateMealPlansRequest.java
+/Users/aoshine/Desktop/chefmate-ai---smart-meal-planner/backend/src/main/java/com/chefmate/backend/repository/MealPlanRepository.java
