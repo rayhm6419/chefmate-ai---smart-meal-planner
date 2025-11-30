@@ -10,4 +10,9 @@ public interface MealPlanRepository extends JpaRepository<MealPlan, UUID> {
     List<MealPlan> findByUserIdAndPlanDate(UUID userId, LocalDate planDate);
 
     void deleteByUserIdAndPlanDate(UUID userId, LocalDate planDate);
+
+    // Alias for clarity with "date" wording; matches Spring Data naming.
+    default void deleteByUserIdAndDate(UUID userId, LocalDate date) {
+        deleteByUserIdAndPlanDate(userId, date);
+    }
 }

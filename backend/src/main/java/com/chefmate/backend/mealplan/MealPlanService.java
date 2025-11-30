@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -28,19 +29,25 @@ public class MealPlanService {
         return new GetMealPlansResponse(date, plans);
     }
 
+    @Transactional
     public GetMealPlansResponse savePlansForDate(LocalDate date, List<MealPlanDto> plans) {
         UUID userId = DemoUsers.DEMO_USER_ID;
 
-        // Replace existing plans for the date.
-        mealPlanRepository.deleteByUserIdAndPlanDate(userId, date);
+        if (plans == null || plans.isEmpty()) {
+            mealPlanRepository.deleteByUserIdAndPlanDate(userId, date);
+            return new GetMealPlansResponse(date, List.of());
+        } else {
+            // Replace existing plans for the date.
+            mealPlanRepository.deleteByUserIdAndPlanDate(userId, date);
 
-        List<MealPlanDto> saved = plans.stream()
-            .map(dto -> toEntity(dto, userId, date))
-            .map(mealPlanRepository::save)
-            .map(MealPlanService::toDto)
-            .toList();
+            List<MealPlanDto> saved = plans.stream()
+                .map(dto -> toEntity(dto, userId, date))
+                .map(mealPlanRepository::save)
+                .map(MealPlanService::toDto)
+                .toList();
 
-        return new GetMealPlansResponse(date, saved);
+            return new GetMealPlansResponse(date, saved);
+        }
     }
 
     private static MealPlanDto toDto(MealPlan mealPlan) {

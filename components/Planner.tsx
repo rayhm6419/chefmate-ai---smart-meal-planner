@@ -19,19 +19,27 @@ export const Planner: React.FC<PlannerProps> = ({ mealPlan, selectedDate, onSele
     return new Date(year, month - 1, day);
   };
 
+  const formatLocalIso = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const weekDates = useMemo(() => {
     const dates: DateInfo[] = [];
-    const curr = new Date();
-    const first = curr.getDate() - curr.getDay() + 1; 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    // Get Monday of the current week (local)
+    const startOfWeek = new Date(today);
+    const dayIndex = (today.getDay() + 6) % 7; // convert Sun=0 to Mon=0
+    startOfWeek.setDate(today.getDate() - dayIndex);
     
     for (let i = 0; i < 7; i++) {
-      const next = new Date(curr.getTime());
-      next.setDate(first + i);
-      
-      const year = next.getFullYear();
-      const month = String(next.getMonth() + 1).padStart(2, '0');
-      const day = String(next.getDate()).padStart(2, '0');
-      const iso = `${year}-${month}-${day}`;
+      const next = new Date(startOfWeek.getTime());
+      next.setDate(startOfWeek.getDate() + i);
+
+      const iso = formatLocalIso(next);
       const dayName = DAYS_OF_WEEK[i];
       const display = `${next.getMonth() + 1}/${next.getDate()}`;
 
@@ -47,7 +55,8 @@ export const Planner: React.FC<PlannerProps> = ({ mealPlan, selectedDate, onSele
 
   const currentDayPlan = mealPlan[selectedDate] || {};
   const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  today.setHours(0, 0, 0, 0);
+  const todayStr = formatLocalIso(today);
   const selectedLocalDate = selectedDate ? parseLocalDate(selectedDate) : today;
 
   return (
