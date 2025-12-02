@@ -5,6 +5,8 @@ export interface Ingredient {
   id: string;
   name: string;
   category: IngredientCategory;
+  quantity?: number;
+  unit?: string;
   expiryDate?: string; // YYYY-MM-DD
 }
 

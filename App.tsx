@@ -78,14 +78,22 @@ const App: React.FC = () => {
     );
   };
 
-  const handleAddIngredient = (name: string, category: IngredientCategory, expiryDate?: string) => {
+  const handleAddIngredient = (name: string, category: IngredientCategory, expiryDate?: string, quantity?: number, unit?: string) => {
     const newItem: Ingredient = {
       id: Date.now().toString(),
       name,
       category,
-      expiryDate
+      expiryDate,
+      quantity,
+      unit
     };
     setInventory(prev => [...prev, newItem]);
+  };
+
+  const handleUpdateIngredient = (id: string, quantity?: number, unit?: string) => {
+    setInventory(prev => prev.map(item => 
+      item.id === id ? { ...item, quantity, unit } : item
+    ));
   };
 
   const handleRemoveIngredient = (id: string) => {
@@ -235,6 +243,7 @@ const App: React.FC = () => {
               <Inventory 
                 ingredients={inventory}
                 onAdd={handleAddIngredient}
+                onUpdate={handleUpdateIngredient}
                 onRemove={handleRemoveIngredient}
                 customBackground={fridgeBg}
                 onUpdateBackground={setFridgeBg}

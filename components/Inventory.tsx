@@ -11,8 +11,9 @@ import { generateFridgeBackground } from '../services/geminiService';
 
 interface InventoryProps {
   ingredients: Ingredient[];
-  onAdd: (name: string, category: IngredientCategory, expiryDate?: string) => void;
+  onAdd: (name: string, category: IngredientCategory, expiryDate?: string, quantity?: number, unit?: string) => void;
   onRemove: (id: string) => void;
+  onUpdate: (id: string, quantity?: number, unit?: string) => void;
   customBackground: string | null;
   onUpdateBackground: (bg: string) => void;
   viewMode: 'fridge' | 'list';
@@ -76,20 +77,23 @@ const COLOR_PALETTE = [
   { bg: 'bg-slate-500', border: 'border-slate-400', shadow: 'shadow-slate-900/20' },
 ];
 
-export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemove, customBackground, onUpdateBackground, viewMode, onSwitchView }) => {
+export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemove, onUpdate, customBackground, onUpdateBackground, viewMode, onSwitchView }) => {
   const [magnetPositions, setMagnetPositions] = useState(INITIAL_POSITIONS);
   const [magnetStyles, setMagnetStyles] = useState(INITIAL_STYLES);
 
-  const [isAdding, setIsAdding] = useState(false);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isCustomizing, setIsCustomizing] = useState(false); 
   
   const [selectedCategory, setSelectedCategory] = useState<IngredientCategory | 'All'>('All');
   
-  // Form States
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemCategory, setNewItemCategory] = useState<IngredientCategory>('Vegetable');
-  const [newItemExpiry, setNewItemExpiry] = useState('');
+  // Editor form state (shared create/edit)
+  const [editingItem, setEditingItem] = useState<Ingredient | null>(null);
+  const [formName, setFormName] = useState('');
+  const [formCategory, setFormCategory] = useState<IngredientCategory>('Vegetable');
+  const [formExpiry, setFormExpiry] = useState('');
+  const [formQuantity, setFormQuantity] = useState('');
+  const [formUnit, setFormUnit] = useState('');
 
   // Drag States
   const [dragState, setDragState] = useState<{
@@ -208,13 +212,43 @@ export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemo
     }
   };
 
-  const handleAdd = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newItemName.trim()) return;
-    onAdd(newItemName, newItemCategory, newItemExpiry || undefined);
-    setNewItemName('');
-    setNewItemExpiry('');
-    setIsAdding(false);
+  const openCreateEditor = () => {
+    setEditingItem(null);
+    setFormName('');
+    setFormCategory('Vegetable');
+    setFormExpiry('');
+    setFormQuantity('');
+    setFormUnit('');
+    setIsEditorOpen(true);
+  };
+  
+  const openEditEditor = (item: Ingredient) => {
+    setEditingItem(item);
+    setFormName(item.name);
+    setFormCategory(item.category);
+    setFormExpiry(item.expiryDate || '');
+    setFormQuantity(item.quantity?.toString() || '');
+    setFormUnit(item.unit || '');
+    setIsEditorOpen(true);
+  };
+  
+  const handleEditorSave = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!formName.trim()) return;
+    const quantity = formQuantity ? parseInt(formQuantity) : undefined;
+    
+    if (editingItem) {
+      onUpdate(editingItem.id, quantity, formUnit || undefined);
+    } else {
+      onAdd(formName, formCategory, formExpiry || undefined, quantity, formUnit || undefined);
+    }
+
+    setIsEditorOpen(false);
+  };
+  
+  const handleEditorCancel = () => {
+    setIsEditorOpen(false);
+    setEditingItem(null);
   };
 
   const handleGenerateDesign = async () => {
@@ -343,58 +377,89 @@ export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemo
     <>
       <div className="flex flex-col h-full bg-slate-50">
         {/* Header */}
-        <div className="p-6 pb-4 bg-white border-b border-slate-100 flex justify-between items-center z-10 sticky top-0">
-          <div>
-            <h3 className="text-2xl font-bold text-slate-900">
-              {selectedCategory === 'All' ? 'Kitchen Inventory' : `${magnetStyles[selectedCategory as IngredientCategory].label} Items`}
+        <div className="p-6 pb-3 bg-white border-b border-slate-100 flex justify-between items-center gap-4 z-10 sticky top-0">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-2xl font-bold text-slate-900 truncate">
+              {selectedCategory === 'All'
+                ? 'Kitchen Inventory'
+                : `${magnetStyles[selectedCategory as IngredientCategory].label} Items`}
             </h3>
             <p className="text-sm text-slate-500">
-              {selectedCategory === 'All' ? 'Manage your ingredients' : 'Manage or customize this magnet'}
+              {selectedCategory === 'All'
+                ? 'Manage your ingredients'
+                : 'Manage or customize this magnet'}
             </p>
           </div>
+          <button
+            onClick={openCreateEditor}
+            className="flex items-center gap-2 px-3 py-2 rounded-full bg-indigo-600 text-white text-sm font-bold shadow-md active:scale-95 transition-transform flex-shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            Add New Item
+          </button>
         </div>
-        
-        {/* Tabs */}
-        {selectedCategory !== 'All' && (
-           <div className="flex border-b border-slate-200 bg-white">
-              <button 
-                onClick={() => setIsCustomizing(false)}
-                className={`flex-1 py-3 text-sm font-bold border-b-2 ${!isCustomizing ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}
-              >
-                Ingredients
-              </button>
-              <button 
-                onClick={() => setIsCustomizing(true)}
-                className={`flex-1 py-3 text-sm font-bold border-b-2 flex items-center justify-center gap-2 ${isCustomizing ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}
-              >
-                <Settings2 className="w-4 h-4" /> Customize Magnet
-              </button>
-           </div>
-        )}
 
-        {/* Categories Filter */}
-        {selectedCategory === 'All' && (
-          <div className="px-6 py-3 bg-white border-b border-slate-100 flex gap-2 overflow-x-auto no-scrollbar">
-            <button 
-              onClick={() => setSelectedCategory('All')} 
-              className="px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors bg-slate-900 text-white"
-            >
-              All Items
-            </button>
-            {categories.map(cat => (
-              <button 
-                key={cat} 
-                onClick={() => setSelectedCategory(cat)} 
-                className="px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors bg-slate-100 text-slate-600"
+        {/* Category Pills - always visible so you can switch freely */}
+        <div className="px-6 py-3 bg-white border-b border-slate-100 flex gap-2 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => {
+              setSelectedCategory('All');
+              setIsCustomizing(false);
+            }}
+            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
+              selectedCategory === 'All'
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-100 text-slate-600'
+            }`}
+          >
+            All Items
+          </button>
+          {categories.map((cat) => {
+            const isActive = selectedCategory === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
+                  isActive
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-slate-100 text-slate-600'
+                }`}
               >
                 {magnetStyles[cat].label}
               </button>
-            ))}
+            );
+          })}
+        </div>
+
+        {/* Tabs for Ingredients / Customize Magnet (only for specific category) */}
+        {selectedCategory !== 'All' && (
+          <div className="flex border-b border-slate-200 bg-white">
+            <button
+              onClick={() => setIsCustomizing(false)}
+              className={`flex-1 py-3 text-sm font-bold border-b-2 ${
+                !isCustomizing
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-slate-400'
+              }`}
+            >
+              Ingredients
+            </button>
+            <button
+              onClick={() => setIsCustomizing(true)}
+              className={`flex-1 py-3 text-sm font-bold border-b-2 flex items-center justify-center gap-2 ${
+                isCustomizing
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-slate-400'
+              }`}
+            >
+              <Settings2 className="w-4 h-4" /> Customize Magnet
+            </button>
           </div>
         )}
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50 pb-32">
+        <div className="flex-1 overflow-y-auto p-6 bg-slate-50 pb-4">
           
           {isCustomizing && selectedCategory !== 'All' && currentStyle ? (
             /* Customization UI */
@@ -479,52 +544,66 @@ export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemo
                    const isExpiringSoon = item.expiryDate && new Date(item.expiryDate) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
                    const itemStyle = magnetStyles[item.category];
                    return (
-                    <div key={item.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between group">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${itemStyle.bg} bg-opacity-10`}>
-                           {React.createElement(ICON_MAP[itemStyle.iconName] || Package, { className: `w-5 h-5 ${itemStyle.text.replace('text-white', 'text-current')} opacity-80` })}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-slate-800">{item.name}</h4>
-                          <div className="flex items-center gap-2 text-xs">
-                             {item.expiryDate && (
-                              <span className={`font-medium px-1.5 py-0.5 rounded ${isExpiringSoon ? 'bg-amber-100 text-amber-600' : 'bg-green-50 text-green-600'}`}>
-                                Exp: {new Date(item.expiryDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                              </span>
-                            )}
+                    <div key={item.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                      <div className="flex items-center justify-between group">
+                        <div 
+                          className="flex items-center gap-4 flex-1 cursor-pointer"
+                          onClick={() => openEditEditor(item)}
+                        >
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${itemStyle.bg} bg-opacity-10 flex-shrink-0`}>
+                             {React.createElement(ICON_MAP[itemStyle.iconName] || Package, { className: `w-5 h-5 ${itemStyle.text.replace('text-white', 'text-current')} opacity-80` })}
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-bold text-slate-800">{item.name}</h4>
+                            <div className="flex items-center gap-2 text-xs mt-1 flex-wrap">
+                              {(item.quantity !== undefined && item.quantity !== null) && (
+                                <span className="font-medium px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600">
+                                  {item.quantity} {item.unit || 'pcs'}
+                                </span>
+                              )}
+                              {item.expiryDate && (
+                                <span className={`font-medium px-1.5 py-0.5 rounded ${isExpiringSoon ? 'bg-amber-100 text-amber-600' : 'bg-green-50 text-green-600'}`}>
+                                  Exp: {new Date(item.expiryDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemove(item.id);
+                          }} 
+                          className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors flex-shrink-0"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
-                      <button onClick={() => onRemove(item.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"><Trash2 className="w-4 h-4" /></button>
                     </div>
                    );
                 })
               )}
             </div>
           )}
+          
         </div>
-
-        {/* Add Button */}
-        {!isCustomizing && (
-          <div className="p-4 bg-white border-t border-slate-100">
-             <button onClick={() => setIsAdding(true)} className="w-full bg-indigo-600 text-white font-bold text-lg py-4 rounded-2xl shadow-lg shadow-indigo-200 active:scale-95 transition-transform flex items-center justify-center gap-2"><Plus className="w-5 h-5" /> Add New Item</button>
-          </div>
-        )}
       </div>
 
-      {/* --- ADD ITEM MODAL --- */}
-      {isAdding && (
+      {/* --- EDIT/ADD SHEET --- */}
+      {isEditorOpen && (
         <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsAdding(false)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleEditorCancel} />
           <div className="relative w-full sm:w-[400px] bg-white rounded-t-3xl sm:rounded-3xl p-6 animate-in slide-in-from-bottom duration-300 mb-safe sm:mb-0">
              <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold text-xl">Add to Fridge</h3>
-                <button onClick={() => setIsAdding(false)} className="p-2 bg-slate-100 rounded-full"><X className="w-5 h-5 text-slate-500" /></button>
+                <h3 className="font-bold text-xl">
+                  {editingItem ? `Edit ${editingItem.name}` : 'Add New Item'}
+                </h3>
+                <button onClick={handleEditorCancel} className="p-2 bg-slate-100 rounded-full"><X className="w-5 h-5 text-slate-500" /></button>
              </div>
-             <form onSubmit={handleAdd} className="space-y-4">
+             <form onSubmit={handleEditorSave} className="space-y-4">
                <div>
                  <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Item Name</label>
-                 <input autoFocus value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="e.g. Carrots" className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500" />
+                 <input autoFocus value={formName} onChange={e => setFormName(e.target.value)} placeholder="e.g. Carrots" className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500" />
                </div>
                <div>
                   <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Category</label>
@@ -533,7 +612,7 @@ export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemo
                       const style = magnetStyles[cat];
                       const Icon = ICON_MAP[style.iconName] || Package;
                       return (
-                        <button key={cat} type="button" onClick={() => setNewItemCategory(cat)} className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${newItemCategory === cat ? `${style.bg} border-transparent text-white shadow-md` : 'bg-white border-slate-200 text-slate-400'}`}>
+                        <button key={cat} type="button" onClick={() => setFormCategory(cat)} className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${formCategory === cat ? `${style.bg} border-transparent text-white shadow-md` : 'bg-white border-slate-200 text-slate-400'}`}>
                           <Icon className="w-5 h-5 mb-1" />
                           <span className="text-[9px] font-bold">{style.label}</span>
                         </button>
@@ -542,10 +621,33 @@ export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemo
                   </div>
                </div>
                <div>
-                 <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Expiry Date</label>
-                 <input type="date" value={newItemExpiry} onChange={e => setNewItemExpiry(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl font-medium text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500" />
+                 <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Quantity & Unit</label>
+                 <div className="flex gap-2">
+                   <input 
+                     type="number" 
+                     value={formQuantity} 
+                     onChange={e => setFormQuantity(e.target.value)} 
+                     placeholder="Quantity (optional)"
+                     min="0"
+                     className="flex-1 bg-slate-50 border border-slate-200 p-4 rounded-xl font-medium text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500" 
+                   />
+                   <input 
+                     type="text" 
+                     value={formUnit} 
+                     onChange={e => setFormUnit(e.target.value)} 
+                     placeholder="Unit (e.g. kg, pcs)"
+                     className="flex-1 bg-slate-50 border border-slate-200 p-4 rounded-xl font-medium text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500" 
+                   />
+                 </div>
                </div>
-               <button type="submit" className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg mt-2 active:scale-95 transition-transform">Confirm Add</button>
+               <div>
+                 <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Expiry Date</label>
+                 <input type="date" value={formExpiry} onChange={e => setFormExpiry(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl font-medium text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500" />
+               </div>
+               <div className="flex gap-3 pt-2">
+                 <button type="button" onClick={handleEditorCancel} className="flex-1 border border-slate-200 text-slate-700 font-bold py-3 rounded-xl bg-white hover:bg-slate-50 transition-colors">Cancel</button>
+                 <button type="submit" className="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-transform">Save</button>
+               </div>
              </form>
           </div>
         </div>
