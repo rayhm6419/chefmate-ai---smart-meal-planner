@@ -5,10 +5,11 @@ import { Inventory } from './components/Inventory';
 import { AIChat } from './components/AIChat';
 import { ShoppingList } from './components/ShoppingList';
 import { AuthScreen } from './components/AuthScreen';
-import { Ingredient, IngredientCategory, MealPlan, ChatMessage, CuisineType, ShoppingItem } from './types';
+import { Ingredient, IngredientCategory, MealPlan, ChatMessage, CuisineType, ShoppingItem, Recipe, MealTypeOption } from './types';
 import { createChatSession, generateMealSuggestion } from './services/geminiService';
 import { Chat } from "@google/genai";
 import { Settings, X, Send, Refrigerator, Package, ShoppingCart, LogOut, User, Heart } from 'lucide-react';
+import { fetchFavorites, generateAiRecipe } from './services/recipeService';
 
 type Tab = 'fridge' | 'inventory' | 'shopping' | 'favorites';
 
@@ -41,6 +42,11 @@ const App: React.FC = () => {
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [homeInput, setHomeInput] = useState('');
+  
+  const [favorites, setFavorites] = useState<Recipe[]>([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
+  const [favoritesGenerating, setFavoritesGenerating] = useState(false);
+  const [favoritesError, setFavoritesError] = useState<string | null>(null);
   
   const chatSessionRef = useRef<Chat | null>(null);
   const [fridgeBg, setFridgeBg] = useState<string | null>(null);
@@ -157,14 +163,57 @@ const App: React.FC = () => {
     setIsChatLoading(false);
   }, [inventory, mealPlan, selectedDate, cuisinePrefs]);
 
-  const handleHomeInputSubmit = (e: React.FormEvent) => {
+  const loadFavorites = useCallback(async (date: string, mealType: MealTypeOption = 'DINNER') => {
+    try {
+      setFavoritesLoading(true);
+      const data = await fetchFavorites(date, mealType);
+      setFavorites(data);
+    } catch (e) {
+      console.error('Favorites fetch failed', e);
+    } finally {
+      setFavoritesLoading(false);
+    }
+  }, []);
+
+  const askForRecipe = useCallback(async (prompt: string) => {
+    setFavoritesError(null);
+    setFavoritesGenerating(true);
+    try {
+      const recipe = await generateAiRecipe({
+        prompt,
+        date: selectedDate,
+        mealType: 'DINNER',
+        servings: 2,
+        mustHaveIngredients: [],
+      });
+      setFavorites(prev => [recipe, ...prev]);
+      return true;
+    } catch (e) {
+      console.error('AI recipe generation failed', e);
+      setFavoritesError('Failed to generate recipe. Please try again.');
+      return false;
+    } finally {
+      setFavoritesGenerating(false);
+    }
+  }, [selectedDate]);
+
+  const handleGenerateFavorite = useCallback(async () => {
+    const defaultPrompt = "Give me a quick dinner idea for tonight that is easy to cook.";
+    await askForRecipe(defaultPrompt);
+  }, [askForRecipe]);
+
+  const handleHomeInputSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!homeInput.trim()) return;
-    
-    setIsChatOpen(true);
-    handleSendMessage(homeInput);
-    setHomeInput('');
+    const ok = await askForRecipe(homeInput.trim());
+    if (ok) setHomeInput('');
   };
+
+  React.useEffect(() => {
+    if (activeTab === 'favorites' && selectedDate) {
+      loadFavorites(selectedDate);
+    }
+  }, [activeTab, selectedDate, loadFavorites]);
 
   // If not authenticated, show Auth Screen
   if (!isAuthenticated) {
@@ -224,17 +273,52 @@ const App: React.FC = () => {
                    <p className="text-sm text-slate-500">Quick access to the dishes you love most.</p>
                  </div>
                </div>
-               <div className="border border-dashed border-rose-200 rounded-2xl p-4 bg-white shadow-sm">
-                 <p className="text-slate-700 font-medium mb-2">No favorites yet</p>
-                 <p className="text-sm text-slate-500 mb-3">Chat with ChefMate or add recipes to pin them here for fast planning.</p>
-                 <button 
-                   onClick={() => setIsChatOpen(true)}
-                   className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 transition-colors"
-                 >
-                   <Heart className="w-4 h-4" /> Ask for a recipe
-                 </button>
-               </div>
-             </div>
+                {favoritesLoading && <p className="text-sm text-slate-500">Loading favorites...</p>}
+                {favoritesError && <p className="text-sm text-red-500">{favoritesError}</p>}
+                {(!favoritesLoading && favorites.length === 0) && (
+                  <div className="border border-dashed border-rose-200 rounded-2xl p-4 bg-white shadow-sm">
+                    <p className="text-slate-700 font-medium mb-2">No favorites yet</p>
+                    <p className="text-sm text-slate-500 mb-3">Ask ChefMate to generate a recipe and it will appear here.</p>
+                    <button 
+                      onClick={handleGenerateFavorite}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 transition-colors"
+                      disabled={favoritesGenerating}
+                    >
+                      <Heart className="w-4 h-4" /> {favoritesGenerating ? 'Generating…' : 'Ask for a recipe'}
+                    </button>
+                  </div>
+                )}
+                {favorites.length > 0 && (
+                  <div className="space-y-3">
+                    {favorites.map((recipe) => (
+                      <div
+                        key={recipe.id}
+                        className="bg-white rounded-2xl border border-rose-100 shadow-sm p-4 cursor-pointer hover:shadow-md transition-shadow"
+                        onClick={() => {
+                          // TODO: navigate to recipe detail
+                        }}
+                      >
+                        <h4 className="font-bold text-slate-900 truncate mb-1">{recipe.title}</h4>
+                        {recipe.shortDescription && (
+                          <p className="text-sm text-slate-600 mb-2">{recipe.shortDescription}</p>
+                        )}
+                        <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap">
+                          {recipe.cookTimeMinutes && (
+                            <span className="px-2 py-1 bg-slate-100 rounded-full">
+                              {recipe.cookTimeMinutes} mins
+                            </span>
+                          )}
+                          {recipe.difficulty && (
+                            <span className="px-2 py-1 bg-slate-100 rounded-full">
+                              {recipe.difficulty}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
            </div>
          )}
 
@@ -268,7 +352,7 @@ const App: React.FC = () => {
              />
              <button 
                type="submit" 
-               disabled={!homeInput.trim()}
+               disabled={!homeInput.trim() || favoritesGenerating}
                className="w-9 h-9 bg-indigo-600 text-white rounded-full flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all disabled:bg-slate-300"
              >
                <Send className="w-4 h-4 ml-0.5" />

@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,13 +17,15 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class RecipeService {
 
+    private static final Logger log = LoggerFactory.getLogger(RecipeService.class);
+
     private final RecipeRepository recipeRepository;
-    private final LlmClient llmClient;
+    private final GeminiClient geminiClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public RecipeService(RecipeRepository recipeRepository, LlmClient llmClient) {
+    public RecipeService(RecipeRepository recipeRepository, GeminiClient geminiClient) {
         this.recipeRepository = recipeRepository;
-        this.llmClient = llmClient;
+        this.geminiClient = geminiClient;
     }
 
     @Transactional(readOnly = true)
@@ -38,8 +42,9 @@ public class RecipeService {
     public RecipeDto generateAndSaveAiRecipe(AiRecipeRequest request) {
         String systemPrompt = buildSystemPrompt();
         String userPrompt = buildUserPrompt(request);
+        String jsonSchema = buildJsonSchema();
 
-        String rawJson = llmClient.generateRecipeJson(systemPrompt, userPrompt);
+        String rawJson = geminiClient.generateJson(systemPrompt, userPrompt, jsonSchema);
         RecipePayload payload = parsePayload(rawJson);
 
         Recipe recipe = new Recipe();
@@ -62,20 +67,7 @@ public class RecipeService {
 
     private String buildSystemPrompt() {
         return """
-        You are an AI chef. Always respond with a single JSON object only, no extra text.
-        Required fields:
-        {
-          "title": string,
-          "shortDescription": string,
-          "servings": number,
-          "mealType": "BREAKFAST" | "LUNCH" | "DINNER",
-          "cuisine": string,
-          "cookTimeMinutes": number,
-          "difficulty": "EASY" | "MEDIUM" | "HARD",
-          "ingredients": [ { "name": string, "quantity": string, "unit": string, "note": string } ],
-          "steps": [string],
-          "tips": [string]
-        }
+        You are a cooking assistant for a meal planning app. Always respond with a single JSON object that matches the provided recipe schema.
         No markdown, no prose, just JSON.
         """;
     }
@@ -95,6 +87,40 @@ public class RecipeService {
         return sb.toString();
     }
 
+    private String buildJsonSchema() {
+        // Represent schema as JSON string
+        return """
+        {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "shortDescription": { "type": "string" },
+            "servings": { "type": "number" },
+            "mealType": { "type": "string", "enum": ["BREAKFAST", "LUNCH", "DINNER"] },
+            "cuisine": { "type": "string" },
+            "cookTimeMinutes": { "type": "number" },
+            "difficulty": { "type": "string", "enum": ["EASY", "MEDIUM", "HARD"] },
+            "ingredients": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "quantity": { "type": "string" },
+                  "unit": { "type": "string" },
+                  "note": { "type": "string" }
+                },
+                "required": ["name"]
+              }
+            },
+            "steps": { "type": "array", "items": { "type": "string" } },
+            "tips": { "type": "array", "items": { "type": "string" } }
+          },
+          "required": ["title","shortDescription","servings","mealType","cookTimeMinutes","difficulty","ingredients","steps","tips"]
+        }
+        """;
+    }
+
     private RecipePayload parsePayload(String rawJson) {
         try {
             JsonNode node = objectMapper.readTree(rawJson);
@@ -111,7 +137,8 @@ public class RecipeService {
                 mapStringArray(node.get("tips"))
             );
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid AI recipe response");
+            log.error("Failed to parse AI recipe JSON response");
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to generate recipe");
         }
     }
 
