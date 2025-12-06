@@ -19,6 +19,7 @@ export interface AiRecipePayload {
   cuisinePreference?: string[];
   dietRestrictions?: string[];
   language?: string;
+  date?: string; // YYYY-MM-DD
 }
 
 interface AiIngredient {
@@ -70,7 +71,7 @@ export const generateAiRecipe = async (payload: AiRecipePayload): Promise<Recipe
     cookTimeMinutes: first.totalTimeMinutes,
     difficulty,
     favorite: true,
-    plannedDate: undefined,
+    plannedDate: payload.date,
     plannedMealSlot: payload.mealType?.toLowerCase(),
     ingredients: first.ingredients?.map((ing) => ({
       name: ing.name,

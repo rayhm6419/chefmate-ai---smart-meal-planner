@@ -23,6 +23,8 @@ public class AiRecipeRequest {
 
     private String language = "en-US";
 
+    private String date; // ISO yyyy-MM-dd, optional
+
     public String getQuery() {
         return query;
     }
@@ -72,5 +74,13 @@ public class AiRecipeRequest {
 
     public void setLanguage(String language) {
         this.language = language;
+    }
+
+    public String getDate() {
+        return date;
+    }
+
+    public void setDate(String date) {
+        this.date = date;
     }
 }

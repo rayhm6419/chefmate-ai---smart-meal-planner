@@ -5,6 +5,7 @@ import { Inventory } from './components/Inventory';
 import { AIChat } from './components/AIChat';
 import { ShoppingList } from './components/ShoppingList';
 import { AuthScreen } from './components/AuthScreen';
+import { RecipeDetailModal } from './components/RecipeDetailModal';
 import { Ingredient, IngredientCategory, MealPlan, ChatMessage, CuisineType, ShoppingItem, Recipe, MealTypeOption } from './types';
 import { createChatSession, generateMealSuggestion } from './services/geminiService';
 import { Chat } from "@google/genai";
@@ -47,6 +48,7 @@ const App: React.FC = () => {
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [favoritesGenerating, setFavoritesGenerating] = useState(false);
   const [favoritesError, setFavoritesError] = useState<string | null>(null);
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   
   const chatSessionRef = useRef<Chat | null>(null);
   const [fridgeBg, setFridgeBg] = useState<string | null>(null);
@@ -185,8 +187,9 @@ const App: React.FC = () => {
         servings: 2,
         cuisinePreference: cuisinePrefs.map(c => c.toLowerCase()),
         language: 'en-US',
+        date: selectedDate,
       });
-      setFavorites(prev => [recipe, ...prev]);
+      await loadFavorites(selectedDate);
       return true;
     } catch (e) {
       console.error('AI recipe generation failed', e);
@@ -295,7 +298,7 @@ const App: React.FC = () => {
                         key={recipe.id}
                         className="bg-white rounded-2xl border border-rose-100 shadow-sm p-4 cursor-pointer hover:shadow-md transition-shadow"
                         onClick={() => {
-                          // TODO: navigate to recipe detail
+                          setSelectedRecipe(recipe);
                         }}
                       >
                         <h4 className="font-bold text-slate-900 truncate mb-1">{recipe.title}</h4>
@@ -485,6 +488,13 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {selectedRecipe && (
+        <RecipeDetailModal
+          recipe={selectedRecipe}
+          onClose={() => setSelectedRecipe(null)}
+        />
       )}
     </div>
   );

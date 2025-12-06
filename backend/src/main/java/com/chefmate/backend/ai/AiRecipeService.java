@@ -5,8 +5,16 @@ import com.chefmate.backend.ai.dto.AiRecipeRequest;
 import com.chefmate.backend.ai.dto.AiRecipeResponse;
 import com.chefmate.backend.ai.dto.IngredientDTO;
 import com.chefmate.backend.ai.dto.RecipeDTO;
+import com.chefmate.backend.entity.Recipe;
+import com.chefmate.backend.recipe.Difficulty;
+import com.chefmate.backend.recipe.MealType;
+import com.chefmate.backend.recipe.RecipeIngredientDto;
+import com.chefmate.backend.recipe.RecipeMapper;
+import com.chefmate.backend.repository.RecipeRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -21,10 +29,12 @@ public class AiRecipeService {
 
     private final LlmClient llmClient;
     private final ObjectMapper objectMapper;
+    private final RecipeRepository recipeRepository;
 
-    public AiRecipeService(LlmClient llmClient, ObjectMapper objectMapper) {
+    public AiRecipeService(LlmClient llmClient, ObjectMapper objectMapper, RecipeRepository recipeRepository) {
         this.llmClient = llmClient;
         this.objectMapper = objectMapper;
+        this.recipeRepository = recipeRepository;
     }
 
     public AiRecipeResponse generateRecipes(AiRecipeRequest request) {
@@ -34,7 +44,9 @@ public class AiRecipeService {
 
         log.info("Requesting AI recipes for query='{}', servings={}, mealType={}", request.getQuery(), request.getServings(), request.getMealType());
         String rawResponse = llmClient.generateRecipes(systemPrompt, userPrompt, jsonSchema);
-        return parseResponse(rawResponse);
+        AiRecipeResponse response = parseResponse(rawResponse);
+        persistFirstRecipe(response, request);
+        return response;
     }
 
     private String buildSystemPrompt() {
@@ -158,5 +170,73 @@ public class AiRecipeService {
         dto.setName(name);
         dto.setAmount(amount);
         return dto;
+    }
+
+    private void persistFirstRecipe(AiRecipeResponse response, AiRecipeRequest request) {
+        if (response.getRecipes() == null || response.getRecipes().isEmpty()) {
+            return;
+        }
+        try {
+            RecipeDTO dto = response.getRecipes().get(0);
+            Recipe recipe = new Recipe();
+            recipe.setTitle(dto.getTitle());
+            recipe.setShortDescription(dto.getDescription());
+            recipe.setServings(dto.getServings());
+            recipe.setMealType(parseMealType(request.getMealType()));
+            recipe.setCuisine(firstOrNull(dto.getTags()));
+            recipe.setCookTimeMinutes(dto.getTotalTimeMinutes());
+            recipe.setDifficulty(parseDifficulty(dto.getDifficulty()));
+            recipe.setFavorite(true);
+            LocalDate plannedDate = parseDate(request.getDate());
+            recipe.setPlannedDate(plannedDate);
+            recipe.setPlannedMealSlot(recipe.getMealType() != null ? recipe.getMealType().name().toLowerCase() : null);
+
+            List<RecipeIngredientDto> ingredients = toIngredientDtos(dto.getIngredients());
+            RecipeMapper.applyLists(recipe, ingredients, dto.getSteps(), dto.getTips());
+
+            recipeRepository.save(recipe);
+            log.info("Saved AI recipe '{}' as favorite for date {}", dto.getTitle(), plannedDate);
+        } catch (Exception e) {
+            log.error("Failed to persist AI recipe", e);
+        }
+    }
+
+    private List<RecipeIngredientDto> toIngredientDtos(List<IngredientDTO> list) {
+        if (list == null) return List.of();
+        return list.stream()
+            .map(i -> new RecipeIngredientDto(i.getName(), null, null, i.getAmount()))
+            .collect(Collectors.toList());
+    }
+
+    private Difficulty parseDifficulty(String value) {
+        if (!StringUtils.hasText(value)) return Difficulty.MEDIUM;
+        try {
+            return Difficulty.valueOf(value.trim().toUpperCase());
+        } catch (Exception e) {
+            return Difficulty.MEDIUM;
+        }
+    }
+
+    private MealType parseMealType(String value) {
+        if (!StringUtils.hasText(value)) return MealType.DINNER;
+        try {
+            return MealType.valueOf(value.trim().toUpperCase());
+        } catch (Exception e) {
+            return MealType.DINNER;
+        }
+    }
+
+    private LocalDate parseDate(String value) {
+        if (!StringUtils.hasText(value)) return LocalDate.now();
+        try {
+            return LocalDate.parse(value);
+        } catch (Exception e) {
+            return LocalDate.now();
+        }
+    }
+
+    private String firstOrNull(List<String> tags) {
+        if (tags == null || tags.isEmpty()) return null;
+        return tags.get(0);
     }
 }
