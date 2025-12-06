@@ -180,11 +180,11 @@ const App: React.FC = () => {
     setFavoritesGenerating(true);
     try {
       const recipe = await generateAiRecipe({
-        prompt,
-        date: selectedDate,
+        query: prompt,
         mealType: 'DINNER',
         servings: 2,
-        mustHaveIngredients: [],
+        cuisinePreference: cuisinePrefs.map(c => c.toLowerCase()),
+        language: 'en-US',
       });
       setFavorites(prev => [recipe, ...prev]);
       return true;

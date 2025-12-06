@@ -2,14 +2,6 @@ import { Recipe, MealTypeOption } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8080";
 
-export interface AiRecipePayload {
-  prompt: string;
-  date: string; // YYYY-MM-DD
-  mealType: MealTypeOption;
-  servings?: number;
-  mustHaveIngredients?: string[];
-}
-
 export const fetchFavorites = async (date: string, mealType?: MealTypeOption): Promise<Recipe[]> => {
   const params = new URLSearchParams({ date });
   if (mealType) params.set("mealType", mealType);
@@ -20,8 +12,38 @@ export const fetchFavorites = async (date: string, mealType?: MealTypeOption): P
   return res.json();
 };
 
+export interface AiRecipePayload {
+  query: string;
+  servings?: number;
+  mealType?: string;
+  cuisinePreference?: string[];
+  dietRestrictions?: string[];
+  language?: string;
+}
+
+interface AiIngredient {
+  name: string;
+  amount: string;
+}
+
+interface AiRecipe {
+  title: string;
+  description: string;
+  totalTimeMinutes: number;
+  difficulty: string;
+  tags: string[];
+  servings: number;
+  ingredients: AiIngredient[];
+  steps: string[];
+  tips: string[];
+}
+
+interface AiRecipeResponse {
+  recipes: AiRecipe[];
+}
+
 export const generateAiRecipe = async (payload: AiRecipePayload): Promise<Recipe> => {
-  const res = await fetch(`${API_BASE}/api/recipes/ai`, {
+  const res = await fetch(`${API_BASE}/api/ai/recipes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -30,5 +52,31 @@ export const generateAiRecipe = async (payload: AiRecipePayload): Promise<Recipe
     const text = await res.text();
     throw new Error(`AI recipe generation failed (${res.status}): ${text}`);
   }
-  return res.json();
+  const data: AiRecipeResponse = await res.json();
+  if (!data.recipes || data.recipes.length === 0) {
+    throw new Error("AI did not return any recipes");
+  }
+
+  const first = data.recipes[0];
+  const difficulty = first.difficulty ? first.difficulty.toUpperCase() as Recipe["difficulty"] : "MEDIUM";
+
+  return {
+    id: Date.now(),
+    title: first.title,
+    shortDescription: first.description,
+    servings: first.servings,
+    mealType: (payload.mealType?.toUpperCase() as MealTypeOption) || "DINNER",
+    cuisine: payload.cuisinePreference?.[0],
+    cookTimeMinutes: first.totalTimeMinutes,
+    difficulty,
+    favorite: true,
+    plannedDate: undefined,
+    plannedMealSlot: payload.mealType?.toLowerCase(),
+    ingredients: first.ingredients?.map((ing) => ({
+      name: ing.name,
+      note: ing.amount,
+    })) || [],
+    steps: first.steps || [],
+    tips: first.tips || [],
+  };
 };
