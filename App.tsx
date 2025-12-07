@@ -1,17 +1,14 @@
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Planner } from './components/Planner';
 import { Inventory } from './components/Inventory';
-import { AIChat } from './components/AIChat';
 import { ShoppingList } from './components/ShoppingList';
 import { AuthScreen } from './components/AuthScreen';
 import { RecipeDetailModal } from './components/RecipeDetailModal';
-import { Ingredient, IngredientCategory, MealPlan, ChatMessage, CuisineType, ShoppingItem, Recipe, MealTypeOption } from './types';
-import { createChatSession, generateMealSuggestion } from './services/geminiService';
-import { Chat } from "@google/genai";
-import { Settings, X, Send, Refrigerator, Package, ShoppingCart, LogOut, User, Heart, Flame } from 'lucide-react';
 import { CookTab } from './components/CookTab';
-import { fetchFavorites, generateAiRecipe } from './services/recipeService';
+import { Ingredient, IngredientCategory, MealPlan, CuisineType, ShoppingItem, Recipe, MealTypeOption } from './types';
+import { Settings, X, Send, Refrigerator, Package, ShoppingCart, LogOut, User, Heart, Flame } from 'lucide-react';
+import { fetchFavorites, generateAiRecipe, generateRecipeFromInventory } from './services/recipeService';
 
 type Tab = 'fridge' | 'inventory' | 'cook' | 'shopping' | 'favorites';
 
@@ -39,19 +36,14 @@ const App: React.FC = () => {
 
   const [mealPlan, setMealPlan] = useState<MealPlan>({});
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isChatLoading, setIsChatLoading] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const [homeInput, setHomeInput] = useState('');
-  
   const [favorites, setFavorites] = useState<Recipe[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [favoritesGenerating, setFavoritesGenerating] = useState(false);
+  const [cookGenerating, setCookGenerating] = useState(false);
   const [favoritesError, setFavoritesError] = useState<string | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   
-  const chatSessionRef = useRef<Chat | null>(null);
   const [fridgeBg, setFridgeBg] = useState<string | null>(null);
 
   // Navigation
@@ -143,42 +135,6 @@ const App: React.FC = () => {
   };
 
 
-  const handleSendMessage = useCallback(async (text: string) => {
-    // Add user message
-    const userMsg: ChatMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      text: text,
-      timestamp: Date.now()
-    };
-    setMessages(prev => [...prev, userMsg]);
-    setIsChatLoading(true);
-
-    if (!chatSessionRef.current) {
-      chatSessionRef.current = createChatSession();
-    }
-
-    // Call API
-    const responseText = await generateMealSuggestion(
-      chatSessionRef.current,
-      text,
-      inventory,
-      mealPlan,
-      selectedDate,
-      cuisinePrefs
-    );
-
-    const modelMsg: ChatMessage = {
-      id: (Date.now() + 1).toString(),
-      role: 'model',
-      text: responseText,
-      timestamp: Date.now()
-    };
-    
-    setMessages(prev => [...prev, modelMsg]);
-    setIsChatLoading(false);
-  }, [inventory, mealPlan, selectedDate, cuisinePrefs]);
-
   const loadFavorites = useCallback(async (date: string, mealType: MealTypeOption = 'DINNER') => {
     try {
       setFavoritesLoading(true);
@@ -225,6 +181,39 @@ const App: React.FC = () => {
     const ok = await askForRecipe(homeInput.trim());
     if (ok) setHomeInput('');
   };
+
+  const handleCookWithInventory = useCallback(async (items: { id: string; name: string; icon?: string }[]) => {
+    setFavoritesError(null);
+    setCookGenerating(true);
+    try {
+      const response = await generateRecipeFromInventory({
+        ingredients: items.map((i) => ({ id: i.id, name: i.name })),
+      });
+
+      const recipe: Recipe = {
+        id: Date.now(),
+        title: response.title,
+        shortDescription: `Made with ${response.ingredients.join(', ')}`,
+        servings: undefined,
+        mealType: 'DINNER',
+        cuisine: undefined,
+        cookTimeMinutes: undefined,
+        difficulty: 'MEDIUM',
+        favorite: false,
+        plannedDate: undefined,
+        plannedMealSlot: undefined,
+        ingredients: response.ingredients.map((name) => ({ name })),
+        steps: response.steps,
+        tips: [],
+      };
+      setSelectedRecipe(recipe);
+    } catch (e) {
+      console.error('Cook with inventory failed', e);
+      setFavoritesError('Failed to cook with current ingredients. Please try again.');
+    } finally {
+      setCookGenerating(false);
+    }
+  }, []);
 
   React.useEffect(() => {
     if (activeTab === 'favorites' && selectedDate) {
@@ -362,35 +351,35 @@ const App: React.FC = () => {
                 name: i.name,
                 icon: ingredientIcon(i.category),
               }))}
+              onCook={handleCookWithInventory}
+              isLoading={cookGenerating}
             />
           </div>
         )}
       </div>
 
-      {/* Bottom Section: Input + Nav */}
+      {/* Bottom Section: Chat (selected tabs) + Nav */}
       <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 flex flex-col pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-        
-        {/* Chat Input Bar (Floating above tabs) */}
-        <div className="px-4 py-3 border-b border-slate-100">
-          <form onSubmit={handleHomeInputSubmit} className="flex gap-3 items-center bg-slate-100 p-2 rounded-full pl-5 focus-within:ring-2 focus-within:ring-indigo-500 transition-all">
-             <input 
-               value={homeInput}
-               onChange={e => setHomeInput(e.target.value)}
-               placeholder="Ask ChefMate for ideas..."
-               className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-slate-400 font-medium"
-             />
-             <button 
-               type="submit" 
-               disabled={!homeInput.trim() || favoritesGenerating}
-               className="w-9 h-9 bg-indigo-600 text-white rounded-full flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all disabled:bg-slate-300"
-             >
-               <Send className="w-4 h-4 ml-0.5" />
-             </button>
-          </form>
-        </div>
-
-        {/* Bottom Navigation Bar */}
-        <div className="flex justify-around items-center px-2 pt-2 pb-1">
+        {['fridge', 'shopping', 'favorites'].includes(activeTab) && (
+          <div className="px-4 py-3 border-b border-slate-100">
+            <form onSubmit={handleHomeInputSubmit} className="flex gap-3 items-center bg-slate-100 p-2 rounded-full pl-5 focus-within:ring-2 focus-within:ring-indigo-500 transition-all">
+               <input 
+                 value={homeInput}
+                 onChange={e => setHomeInput(e.target.value)}
+                 placeholder="Ask ChefMate for ideas..."
+                 className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-slate-400 font-medium"
+               />
+               <button 
+                 type="submit" 
+                 disabled={!homeInput.trim() || favoritesGenerating}
+                 className="w-9 h-9 bg-indigo-600 text-white rounded-full flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all disabled:bg-slate-300"
+               >
+                 <Send className="w-4 h-4 ml-0.5" />
+               </button>
+            </form>
+          </div>
+        )}
+        <div className="flex justify-around items-center px-2 pt-2 pb-3">
            <button 
              onClick={() => setActiveTab('fridge')}
              className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all ${activeTab === 'fridge' ? 'text-indigo-600 bg-indigo-50 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
@@ -432,19 +421,6 @@ const App: React.FC = () => {
            </button>
         </div>
       </div>
-
-      {/* Chat Modal Overlay */}
-      {isChatOpen && (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-white animate-in slide-in-from-bottom duration-300">
-           <AIChat 
-              messages={messages}
-              onSendMessage={handleSendMessage}
-              isLoading={isChatLoading}
-              onClose={() => setIsChatOpen(false)}
-           />
-        </div>
-      )}
-
       {/* Settings / Preferences Modal */}
       {showPrefs && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">

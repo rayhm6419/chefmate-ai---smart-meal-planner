@@ -27,6 +27,29 @@ interface AiIngredient {
   amount: string;
 }
 
+export interface InventoryCookPayload {
+  ingredients: { id?: string; name: string }[];
+}
+
+export interface InventoryCookResponse {
+  title: string;
+  ingredients: string[];
+  steps: string[];
+}
+
+export const generateRecipeFromInventory = async (payload: InventoryCookPayload): Promise<InventoryCookResponse> => {
+  const res = await fetch(`${API_BASE}/api/recipes/from-inventory`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ingredients: payload.ingredients }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Inventory cook failed (${res.status}): ${text}`);
+  }
+  return res.json();
+};
+
 interface AiRecipe {
   title: string;
   description: string;
