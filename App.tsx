@@ -9,10 +9,11 @@ import { RecipeDetailModal } from './components/RecipeDetailModal';
 import { Ingredient, IngredientCategory, MealPlan, ChatMessage, CuisineType, ShoppingItem, Recipe, MealTypeOption } from './types';
 import { createChatSession, generateMealSuggestion } from './services/geminiService';
 import { Chat } from "@google/genai";
-import { Settings, X, Send, Refrigerator, Package, ShoppingCart, LogOut, User, Heart } from 'lucide-react';
+import { Settings, X, Send, Refrigerator, Package, ShoppingCart, LogOut, User, Heart, Flame } from 'lucide-react';
+import { CookTab } from './components/CookTab';
 import { fetchFavorites, generateAiRecipe } from './services/recipeService';
 
-type Tab = 'fridge' | 'inventory' | 'shopping' | 'favorites';
+type Tab = 'fridge' | 'inventory' | 'cook' | 'shopping' | 'favorites';
 
 const App: React.FC = () => {
   // --- Auth State ---
@@ -106,6 +107,19 @@ const App: React.FC = () => {
 
   const handleRemoveIngredient = (id: string) => {
     setInventory(prev => prev.filter(item => item.id !== id));
+  };
+
+  const ingredientIcon = (category: IngredientCategory) => {
+    switch (category) {
+      case 'Meat': return '🍗';
+      case 'Vegetable': return '🥦';
+      case 'Fruit': return '🍎';
+      case 'Dairy': return '🥛';
+      case 'Grain': return '🍚';
+      case 'Spice': return '🧂';
+      case 'Snack': return '🍘';
+      default: return '🥕';
+    }
   };
 
   const handleUpdatePlan = (date: string, mealType: 'lunch' | 'dinner', value: string) => {
@@ -325,20 +339,32 @@ const App: React.FC = () => {
            </div>
          )}
 
-         {(activeTab === 'fridge' || activeTab === 'inventory') && (
-           <div className="flex-1 h-full flex flex-col">
-              <Inventory 
-                ingredients={inventory}
-                onAdd={handleAddIngredient}
-                onUpdate={handleUpdateIngredient}
-                onRemove={handleRemoveIngredient}
-                customBackground={fridgeBg}
-                onUpdateBackground={setFridgeBg}
-                viewMode={activeTab === 'fridge' ? 'fridge' : 'list'}
-                onSwitchView={(mode) => setActiveTab(mode === 'fridge' ? 'fridge' : 'inventory')}
-              />
-           </div>
-         )}
+        {(activeTab === 'fridge' || activeTab === 'inventory') && (
+          <div className="flex-1 h-full flex flex-col">
+             <Inventory 
+               ingredients={inventory}
+               onAdd={handleAddIngredient}
+               onUpdate={handleUpdateIngredient}
+               onRemove={handleRemoveIngredient}
+               customBackground={fridgeBg}
+               onUpdateBackground={setFridgeBg}
+               viewMode={activeTab === 'fridge' ? 'fridge' : 'list'}
+               onSwitchView={(mode) => setActiveTab(mode === 'fridge' ? 'fridge' : 'inventory')}
+             />
+          </div>
+        )}
+
+        {activeTab === 'cook' && (
+          <div className="flex-1 h-full">
+            <CookTab
+              inventory={inventory.map((i) => ({
+                id: i.id,
+                name: i.name,
+                icon: ingredientIcon(i.category),
+              }))}
+            />
+          </div>
+        )}
       </div>
 
       {/* Bottom Section: Input + Nav */}
@@ -379,6 +405,14 @@ const App: React.FC = () => {
            >
              <Package className="w-6 h-6" strokeWidth={activeTab === 'inventory' ? 2.5 : 2} />
              <span className="text-[10px]">Inventory</span>
+           </button>
+
+           <button 
+             onClick={() => setActiveTab('cook')}
+             className={`-mt-6 flex flex-col items-center gap-1 px-4 py-2 rounded-full transition-all ${activeTab === 'cook' ? 'text-white bg-indigo-600 shadow-xl shadow-indigo-200' : 'text-slate-500 bg-indigo-50'} w-14 h-14 justify-center border-2 border-white`}
+           >
+             <Flame className="w-6 h-6" strokeWidth={2.5} />
+             <span className="text-[10px] font-bold">Cook</span>
            </button>
 
            <button 
