@@ -104,3 +104,42 @@ export const generateAiRecipe = async (payload: AiRecipePayload): Promise<Recipe
     tips: first.tips || [],
   };
 };
+
+export interface CookIdeaPayload {
+  ingredients: { id?: string; name: string }[];
+  cuisinePreference?: string[];
+  difficulty?: string;
+  servings?: number;
+  maxTimeMinutes?: number;
+  excludeRecipeIds?: string[];
+  seed?: string;
+}
+
+export interface CookIdea {
+  id: string;
+  title: string;
+  shortDescription: string;
+  difficulty: string;
+  estimatedTime: number;
+  imageUrl: string;
+  ingredients: string[];
+  steps: string[];
+}
+
+interface CookIdeasResponse {
+  dishes: CookIdea[];
+}
+
+export const generateCookIdeas = async (payload: CookIdeaPayload): Promise<CookIdea[]> => {
+  const res = await fetch(`${API_BASE}/api/recipes/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Cook ideas generation failed (${res.status}): ${text}`);
+  }
+  const data: CookIdeasResponse = await res.json();
+  return data.dishes || [];
+};

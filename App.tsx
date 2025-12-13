@@ -5,10 +5,11 @@ import { Inventory } from './components/Inventory';
 import { ShoppingList } from './components/ShoppingList';
 import { AuthScreen } from './components/AuthScreen';
 import { RecipeDetailModal } from './components/RecipeDetailModal';
-import { CookTab } from './components/CookTab';
+import RecipePopup from './components/RecipePopup';
+import { CookTab, CookIdea } from './components/CookTab';
 import { Ingredient, IngredientCategory, MealPlan, CuisineType, ShoppingItem, Recipe, MealTypeOption } from './types';
 import { Settings, X, Send, Refrigerator, Package, ShoppingCart, LogOut, User, Heart, Flame } from 'lucide-react';
-import { fetchFavorites, generateAiRecipe, generateRecipeFromInventory } from './services/recipeService';
+import { fetchFavorites, generateAiRecipe, generateCookIdeas } from './services/recipeService';
 
 type Tab = 'fridge' | 'inventory' | 'cook' | 'shopping' | 'favorites';
 
@@ -41,8 +42,13 @@ const App: React.FC = () => {
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [favoritesGenerating, setFavoritesGenerating] = useState(false);
   const [cookGenerating, setCookGenerating] = useState(false);
+  const [cookRecipes, setCookRecipes] = useState<CookIdea[]>([]);
+  const [lastCookPayload, setLastCookPayload] = useState<{ ingredients: { id?: string; name: string }[] } | null>(null);
+  const [cookError, setCookError] = useState<string | null>(null);
   const [favoritesError, setFavoritesError] = useState<string | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [showRecipePopup, setShowRecipePopup] = useState(false);
+  const [popupSelectedId, setPopupSelectedId] = useState<string | null>(null);
   
   const [fridgeBg, setFridgeBg] = useState<string | null>(null);
 
@@ -184,36 +190,49 @@ const App: React.FC = () => {
 
   const handleCookWithInventory = useCallback(async (items: { id: string; name: string; icon?: string }[]) => {
     setFavoritesError(null);
+    setCookError(null);
     setCookGenerating(true);
     try {
-      const response = await generateRecipeFromInventory({
-        ingredients: items.map((i) => ({ id: i.id, name: i.name })),
-      });
-
-      const recipe: Recipe = {
-        id: Date.now(),
-        title: response.title,
-        shortDescription: `Made with ${response.ingredients.join(', ')}`,
-        servings: undefined,
-        mealType: 'DINNER',
-        cuisine: undefined,
-        cookTimeMinutes: undefined,
-        difficulty: 'MEDIUM',
-        favorite: false,
-        plannedDate: undefined,
-        plannedMealSlot: undefined,
-        ingredients: response.ingredients.map((name) => ({ name })),
-        steps: response.steps,
-        tips: [],
-      };
-      setSelectedRecipe(recipe);
+      const payload = { ingredients: items.map((i) => ({ id: i.id, name: i.name })) };
+      setLastCookPayload(payload);
+      const dishes = await generateCookIdeas(payload);
+      if (!dishes || dishes.length === 0) {
+        throw new Error('No dishes returned');
+      }
+      setCookRecipes(dishes);
+      setShowRecipePopup(true);
+      setPopupSelectedId(null);
     } catch (e) {
       console.error('Cook with inventory failed', e);
-      setFavoritesError('Failed to cook with current ingredients. Please try again.');
+      setCookError('Failed to cook with current ingredients. Please try again.');
     } finally {
       setCookGenerating(false);
     }
   }, []);
+
+  const handleRegenerateCook = useCallback(async () => {
+    if (!lastCookPayload) return;
+    setCookGenerating(true);
+    setCookError(null);
+    try {
+      const dishes = await generateCookIdeas(lastCookPayload);
+      if (!dishes || dishes.length === 0) {
+        throw new Error('No dishes returned');
+      }
+      setCookRecipes(dishes);
+      setShowRecipePopup(true);
+    } catch (e) {
+      console.error('Regenerate cook ideas failed', e);
+      setCookError('Couldn’t regenerate dishes, please try again.');
+    } finally {
+      setCookGenerating(false);
+    }
+  }, [lastCookPayload]);
+
+  const handleSelectCookIdea = (idea: CookIdea) => {
+    setPopupSelectedId(idea.id);
+    setShowRecipePopup(true);
+  };
 
   React.useEffect(() => {
     if (activeTab === 'favorites' && selectedDate) {
@@ -504,6 +523,17 @@ const App: React.FC = () => {
         <RecipeDetailModal
           recipe={selectedRecipe}
           onClose={() => setSelectedRecipe(null)}
+        />
+      )}
+
+      {showRecipePopup && (
+        <RecipePopup
+          isOpen={showRecipePopup}
+          onClose={() => { setShowRecipePopup(false); setPopupSelectedId(null); }}
+          recipes={cookRecipes}
+          initialSelectedId={popupSelectedId}
+          onRegenerate={handleRegenerateCook}
+          isLoading={cookGenerating}
         />
       )}
     </div>

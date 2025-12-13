@@ -1,5 +1,7 @@
 package com.chefmate.backend.recipe;
 
+import com.chefmate.backend.recipe.dto.GenerateRecipesRequest;
+import com.chefmate.backend.recipe.dto.GenerateRecipesResponse;
 import com.chefmate.backend.recipe.dto.InventoryRecipeRequest;
 import com.chefmate.backend.recipe.dto.InventoryRecipeResponse;
 import jakarta.validation.Valid;
@@ -22,10 +24,12 @@ public class RecipeController {
 
     private final RecipeService recipeService;
     private final InventoryRecipeService inventoryRecipeService;
+    private final GenerateRecipesService generateRecipesService;
 
-    public RecipeController(RecipeService recipeService, InventoryRecipeService inventoryRecipeService) {
+    public RecipeController(RecipeService recipeService, InventoryRecipeService inventoryRecipeService, GenerateRecipesService generateRecipesService) {
         this.recipeService = recipeService;
         this.inventoryRecipeService = inventoryRecipeService;
+        this.generateRecipesService = generateRecipesService;
     }
 
     @PostMapping("/ai")
@@ -46,6 +50,12 @@ public class RecipeController {
     @PostMapping("/from-inventory")
     public ResponseEntity<InventoryRecipeResponse> generateFromInventory(@Valid @RequestBody InventoryRecipeRequest request) {
         InventoryRecipeResponse response = inventoryRecipeService.generateFromInventory(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/generate")
+    public ResponseEntity<GenerateRecipesResponse> generateRecipes(@Valid @RequestBody GenerateRecipesRequest request) {
+        GenerateRecipesResponse response = generateRecipesService.generate(request);
         return ResponseEntity.ok(response);
     }
 }

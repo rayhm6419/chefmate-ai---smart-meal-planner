@@ -6,25 +6,43 @@ type CookItem = {
   icon?: string;
 };
 
+export type CookIdea = {
+  id: string;
+  title: string;
+  shortDescription: string;
+  difficulty: string;
+  estimatedTime: number;
+  imageUrl: string;
+  ingredients: string[];
+  steps: string[];
+};
+
 type Props = {
   inventory: CookItem[];
   onCook: (items: CookItem[]) => Promise<void>;
+  onRegenerate?: () => Promise<void>;
   isLoading?: boolean;
+  recipes?: CookIdea[];
+  onSelectRecipe?: (idea: CookIdea) => void;
+  error?: string | null;
 };
 
 export const CookTab: React.FC<Props> = ({ inventory, onCook, isLoading }) => {
   const [potItems, setPotItems] = useState<CookItem[]>([]);
 
-  const addToPot = (item: CookItem) => {
-    if (!potItems.find((i) => i.id === item.id)) {
-      setPotItems((prev) => [...prev, item]);
-    }
+  const toggleItem = (item: CookItem) => {
+    setPotItems((prev) => {
+      const exists = prev.find((i) => i.id === item.id);
+      if (exists) {
+        return prev.filter((i) => i.id !== item.id);
+      }
+      return [...prev, item];
+    });
   };
 
   const cook = async () => {
     if (potItems.length === 0 || isLoading) return;
     await onCook(potItems);
-    setPotItems([]);
   };
 
   return (
@@ -75,9 +93,9 @@ export const CookTab: React.FC<Props> = ({ inventory, onCook, isLoading }) => {
             return (
               <button
                 key={item.id}
-                onClick={() => addToPot(item)}
+                onClick={() => toggleItem(item)}
                 className={`flex-shrink-0 p-3 rounded-2xl border flex flex-col items-center w-20 transition-all ${
-                  added ? 'bg-indigo-50 border-indigo-200 opacity-50' : 'bg-white border-slate-100 hover:border-indigo-300'
+                  added ? 'bg-indigo-50 border-indigo-200 ring-2 ring-indigo-200' : 'bg-white border-slate-100 hover:border-indigo-300'
                 }`}
               >
                 <span className="text-2xl mb-1">{item.icon || '🥕'}</span>
@@ -86,6 +104,7 @@ export const CookTab: React.FC<Props> = ({ inventory, onCook, isLoading }) => {
             );
           })}
         </div>
+
       </div>
     </div>
   );
