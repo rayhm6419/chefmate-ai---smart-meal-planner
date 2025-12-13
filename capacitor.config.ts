@@ -6,9 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   bundledWebRuntime: false,
   server: {
-    iosScheme: 'https',
-    url: "http://127.0.0.1:3000", // 或你的 dev 端口
-    cleartext: true
+    iosScheme: 'https'
   }
 };
 

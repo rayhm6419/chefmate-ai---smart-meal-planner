@@ -1,11 +1,10 @@
 import { Recipe, MealTypeOption } from "../types";
-
-const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8080";
+import { API_BASE_URL } from "../config/env";
 
 export const fetchFavorites = async (date: string, mealType?: MealTypeOption): Promise<Recipe[]> => {
   const params = new URLSearchParams({ date });
   if (mealType) params.set("mealType", mealType);
-  const res = await fetch(`${API_BASE}/api/recipes/favorites?${params.toString()}`);
+  const res = await fetch(`${API_BASE_URL}/api/recipes/favorites?${params.toString()}`);
   if (!res.ok) {
     throw new Error(`Failed to fetch favorites (${res.status})`);
   }
@@ -38,7 +37,7 @@ export interface InventoryCookResponse {
 }
 
 export const generateRecipeFromInventory = async (payload: InventoryCookPayload): Promise<InventoryCookResponse> => {
-  const res = await fetch(`${API_BASE}/api/recipes/from-inventory`, {
+  const res = await fetch(`${API_BASE_URL}/api/recipes/from-inventory`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ingredients: payload.ingredients }),
@@ -67,7 +66,7 @@ interface AiRecipeResponse {
 }
 
 export const generateAiRecipe = async (payload: AiRecipePayload): Promise<Recipe> => {
-  const res = await fetch(`${API_BASE}/api/ai/recipes`, {
+  const res = await fetch(`${API_BASE_URL}/api/ai/recipes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -131,7 +130,7 @@ interface CookIdeasResponse {
 }
 
 export const generateCookIdeas = async (payload: CookIdeaPayload): Promise<CookIdea[]> => {
-  const res = await fetch(`${API_BASE}/api/recipes/generate`, {
+  const res = await fetch(`${API_BASE_URL}/api/recipes/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

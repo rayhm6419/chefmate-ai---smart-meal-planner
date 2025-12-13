@@ -15,9 +15,16 @@ View your app in AI Studio: https://ai.studio/apps/temp/1
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. Create [.env.local](.env.local) with:
+   - `GEMINI_API_KEY=<your-key>`
+   - `VITE_API_URL=http://127.0.0.1:8080` (simulator) or `http://<LAN-IP>:8080` (real device)
 3. Run the app:
    `npm run dev`
+
+## API base URL
+
+- Frontend reads `VITE_API_URL` (required for production) and optional `VITE_DEV_API_URL` from `config/env.ts`.
+- Dev fallback is `http://127.0.0.1:8080` for simulators. Production builds must point to an HTTPS host; there is no localhost fallback in release builds.
 
 ## iOS (Capacitor) Setup
 
@@ -27,8 +34,11 @@ This project now ships with Capacitor config so you can run it as an iOS app.
 2. Build the web assets: `npm run build`
 3. Add the iOS platform (one time): `npx cap add ios`
 4. Sync web assets and native config: `npm run cap:sync`
-5. Open in Xcode and run on a simulator/device: `npx cap open ios`
-   - From Xcode, select a simulator and press Run. If you prefer the CLI, `npm run cap:ios -- --target "<simulator name or UDID>"`.
-6. For live reload during development (optional):
-   - Start Vite with a host IP the simulator can reach: `npm run dev -- --host --port 5173`
-   - Update `server.url` in `capacitor.config.ts` to `http://<your-ip>:5173` and set `cleartext: true` temporarily, then re-run `npm run cap:sync`.
+5. For live reload during development (preferred):
+   - Start Vite: `npm run dev -- --host --port 5173` (or `--host <LAN-IP>` when testing on device).
+   - Run the app with live reload: `npx cap run ios -l --external --target "<simulator or device>"`
+   - Simulator can use `VITE_API_URL=http://127.0.0.1:8080`; real devices should use `VITE_API_URL=http://<LAN-IP>:8080`.
+6. Open in Xcode for signing/release: `npx cap open ios`
+   - Release builds use `ios/App/App/Info.plist` (ATS-compliant, HTTPS only).
+   - Debug/live-reload builds use `ios/App/App/Info-Debug.plist`, which allows cleartext HTTP only for development.
+7. Production deployments must set `VITE_API_URL=https://<hosted-backend>` and serve over HTTPS to satisfy ATS.

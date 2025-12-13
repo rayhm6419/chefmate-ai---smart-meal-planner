@@ -1,39 +1,99 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Planner } from './components/Planner';
 import { Inventory } from './components/Inventory';
 import { ShoppingList } from './components/ShoppingList';
-import { AuthScreen } from './components/AuthScreen';
 import { RecipeDetailModal } from './components/RecipeDetailModal';
 import RecipePopup from './components/RecipePopup';
 import { CookTab, CookIdea } from './components/CookTab';
 import { Ingredient, IngredientCategory, MealPlan, CuisineType, ShoppingItem, Recipe, MealTypeOption } from './types';
-import { Settings, X, Send, Refrigerator, Package, ShoppingCart, LogOut, User, Heart, Flame } from 'lucide-react';
+import { Settings, X, Send, Refrigerator, Package, ShoppingCart, Heart, Flame } from 'lucide-react';
 import { fetchFavorites, generateAiRecipe, generateCookIdeas } from './services/recipeService';
 
 type Tab = 'fridge' | 'inventory' | 'cook' | 'shopping' | 'favorites';
 
+const INVENTORY_STORAGE_KEY = 'chefmate.inventory';
+const SHOPPING_STORAGE_KEY = 'chefmate.shopping';
+
+const DEFAULT_INVENTORY: Ingredient[] = [
+  { id: '1', name: 'Chicken Breast', category: 'Meat', expiryDate: '2023-11-25' },
+  { id: '2', name: 'Bok Choy', category: 'Vegetable', expiryDate: '2023-11-23' },
+  { id: '3', name: 'Rice', category: 'Grain' },
+  { id: '4', name: 'Soy Sauce', category: 'Spice' },
+  { id: '5', name: 'Eggs', category: 'Dairy', expiryDate: '2023-11-28' },
+  { id: '6', name: 'Apples', category: 'Fruit', expiryDate: '2023-12-05' },
+  { id: '7', name: 'Milk', category: 'Dairy', expiryDate: '2023-11-30' },
+  { id: '8', name: 'Chili Oil', category: 'Spice' },
+];
+
+const DEFAULT_SHOPPING: ShoppingItem[] = [
+  { id: '1', name: 'Garlic', checked: false },
+  { id: '2', name: 'Oyster Sauce', checked: true },
+];
+
 const App: React.FC = () => {
-  // --- Auth State ---
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{name: string; email: string; avatar?: string} | null>(null);
+  // --- User/Profile State ---
+  const [currentUser] = useState<{name: string; email: string; avatar?: string}>({
+    name: 'Guest',
+    email: 'guest@chefmate.app'
+  });
 
   // --- App Data State ---
-  const [inventory, setInventory] = useState<Ingredient[]>([
-    { id: '1', name: 'Chicken Breast', category: 'Meat', expiryDate: '2023-11-25' },
-    { id: '2', name: 'Bok Choy', category: 'Vegetable', expiryDate: '2023-11-23' },
-    { id: '3', name: 'Rice', category: 'Grain' },
-    { id: '4', name: 'Soy Sauce', category: 'Spice' },
-    { id: '5', name: 'Eggs', category: 'Dairy', expiryDate: '2023-11-28' },
-    { id: '6', name: 'Apples', category: 'Fruit', expiryDate: '2023-12-05' },
-    { id: '7', name: 'Milk', category: 'Dairy', expiryDate: '2023-11-30' },
-    { id: '8', name: 'Chili Oil', category: 'Spice' },
-  ]);
+  const [inventory, setInventory] = useState<Ingredient[]>([]);
+  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
+  const [dataHydrated, setDataHydrated] = useState(false);
 
-  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([
-    { id: '1', name: 'Garlic', checked: false },
-    { id: '2', name: 'Oyster Sauce', checked: true },
-  ]);
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      setInventory(DEFAULT_INVENTORY);
+      setShoppingItems(DEFAULT_SHOPPING);
+      setDataHydrated(true);
+      return;
+    }
+
+    try {
+      const storedInventory = localStorage.getItem(INVENTORY_STORAGE_KEY);
+      const storedShopping = localStorage.getItem(SHOPPING_STORAGE_KEY);
+
+      if (storedInventory) {
+        setInventory(JSON.parse(storedInventory));
+      } else {
+        setInventory(DEFAULT_INVENTORY);
+        localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(DEFAULT_INVENTORY));
+      }
+
+      if (storedShopping) {
+        setShoppingItems(JSON.parse(storedShopping));
+      } else {
+        setShoppingItems(DEFAULT_SHOPPING);
+        localStorage.setItem(SHOPPING_STORAGE_KEY, JSON.stringify(DEFAULT_SHOPPING));
+      }
+    } catch (err) {
+      console.error('Failed to load saved data', err);
+      setInventory(DEFAULT_INVENTORY);
+      setShoppingItems(DEFAULT_SHOPPING);
+    } finally {
+      setDataHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!dataHydrated || typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
+    } catch (err) {
+      console.error('Failed to persist inventory', err);
+    }
+  }, [inventory, dataHydrated]);
+
+  useEffect(() => {
+    if (!dataHydrated || typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(SHOPPING_STORAGE_KEY, JSON.stringify(shoppingItems));
+    } catch (err) {
+      console.error('Failed to persist shopping list', err);
+    }
+  }, [shoppingItems, dataHydrated]);
 
   const [mealPlan, setMealPlan] = useState<MealPlan>({});
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -65,19 +125,6 @@ const App: React.FC = () => {
   ];
 
   // --- Handlers ---
-
-  const handleLogin = (user: { name: string; email: string; avatar?: string }) => {
-    setCurrentUser(user);
-    setIsAuthenticated(true);
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setCurrentUser(null);
-    setShowPrefs(false);
-    // Reset tab to fridge just in case
-    setActiveTab('fridge');
-  };
 
   const toggleCuisine = (c: CuisineType) => {
     setCuisinePrefs(prev => 
@@ -144,10 +191,12 @@ const App: React.FC = () => {
   const loadFavorites = useCallback(async (date: string, mealType: MealTypeOption = 'DINNER') => {
     try {
       setFavoritesLoading(true);
+      setFavoritesError(null);
       const data = await fetchFavorites(date, mealType);
       setFavorites(data);
     } catch (e) {
       console.error('Favorites fetch failed', e);
+      setFavoritesError('Failed to load favorites. Please try again.');
     } finally {
       setFavoritesLoading(false);
     }
@@ -240,9 +289,12 @@ const App: React.FC = () => {
     }
   }, [activeTab, selectedDate, loadFavorites]);
 
-  // If not authenticated, show Auth Screen
-  if (!isAuthenticated) {
-    return <AuthScreen onLogin={handleLogin} />;
+  if (!dataHydrated) {
+    return (
+      <div className="flex items-center justify-center h-full w-full bg-white text-slate-600">
+        <p className="text-sm font-medium">Loading your kitchen...</p>
+      </div>
+    );
   }
 
   return (
@@ -458,19 +510,17 @@ const App: React.FC = () => {
               {/* User Profile Section */}
               <div className="p-6 border-b border-slate-100 bg-slate-50/50">
                  <div className="flex items-center gap-4 mb-3">
-                   <img 
-                     src={currentUser?.avatar} 
-                     alt="Profile" 
-                     className="w-16 h-16 rounded-full shadow-sm border-2 border-white" 
-                   />
+                   <div className="w-16 h-16 rounded-full shadow-sm border-2 border-white bg-indigo-50 text-indigo-700 flex items-center justify-center text-2xl font-bold">
+                     {currentUser.name.charAt(0)}
+                   </div>
                    <div>
-                     <h4 className="text-lg font-bold text-slate-900">{currentUser?.name}</h4>
-                     <p className="text-sm text-slate-500 font-medium">{currentUser?.email}</p>
+                     <h4 className="text-lg font-bold text-slate-900">{currentUser.name}</h4>
+                     <p className="text-sm text-slate-500 font-medium">{currentUser.email}</p>
                    </div>
                  </div>
-                 <button className="text-sm text-indigo-600 font-bold hover:text-indigo-700 transition-colors flex items-center gap-1">
-                   Edit Profile
-                 </button>
+                 <p className="text-sm text-slate-600">
+                   Guest mode is enabled. Sign-in will be added when server auth is available.
+                 </p>
               </div>
 
               {/* Cuisine Preferences */}
@@ -504,15 +554,15 @@ const App: React.FC = () => {
                  </div>
               </div>
 
-              {/* Logout Button */}
+              {/* Close Button */}
               <div className="p-6 bg-slate-50">
                 <button 
-                  onClick={handleLogout}
-                  className="w-full py-4 rounded-xl border border-red-100 bg-white text-red-600 font-bold hover:bg-red-50 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                  onClick={() => setShowPrefs(false)}
+                  className="w-full py-4 rounded-xl border border-indigo-100 bg-white text-indigo-700 font-bold hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
-                  <LogOut className="w-5 h-5" /> Log Out
+                  Close
                 </button>
-                <p className="text-center text-xs text-slate-400 mt-4 font-medium">ChefMate v1.0.2</p>
+                <p className="text-center text-xs text-slate-400 mt-4 font-medium">ChefMate v1.0.2 • Guest mode</p>
               </div>
             </div>
           </div>
