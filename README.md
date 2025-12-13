@@ -21,6 +21,10 @@ View your app in AI Studio: https://ai.studio/apps/temp/1
 3. Run the app:
    `npm run dev`
 
+## Deploying to Render
+
+- Render defaults to Node 16, which is incompatible with Vite 6 and React 19. Set the Node version to **20** (or later) in your Render service or respect the included [.nvmrc](.nvmrc) to avoid build failures like exit code 27.
+
 ## API base URL
 
 - Frontend reads `VITE_API_URL` (required for production) and optional `VITE_DEV_API_URL` from `config/env.ts`.
