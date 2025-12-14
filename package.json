@@ -20,7 +20,8 @@
     "react-markdown": "^10.1.0",
     "lucide-react": "^0.554.0",
     "react-dom": "^19.2.0",
-    "@google/genai": "^1.30.0"
+    "@google/genai": "^1.30.0",
+    "@capawesome/capacitor-secure-storage": "^6.0.1"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.2.0",

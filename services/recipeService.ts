@@ -1,14 +1,10 @@
 import { Recipe, MealTypeOption } from "../types";
-import { API_BASE_URL } from "../config/env";
+import { apiFetchJson } from "./apiClient";
 
 export const fetchFavorites = async (date: string, mealType?: MealTypeOption): Promise<Recipe[]> => {
   const params = new URLSearchParams({ date });
   if (mealType) params.set("mealType", mealType);
-  const res = await fetch(`${API_BASE_URL}/api/recipes/favorites?${params.toString()}`);
-  if (!res.ok) {
-    throw new Error(`Failed to fetch favorites (${res.status})`);
-  }
-  return res.json();
+  return apiFetchJson<Recipe[]>(`/api/recipes/favorites?${params.toString()}`);
 };
 
 export interface AiRecipePayload {
@@ -37,16 +33,11 @@ export interface InventoryCookResponse {
 }
 
 export const generateRecipeFromInventory = async (payload: InventoryCookPayload): Promise<InventoryCookResponse> => {
-  const res = await fetch(`${API_BASE_URL}/api/recipes/from-inventory`, {
+  return apiFetchJson<InventoryCookResponse>(`/api/recipes/from-inventory`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ingredients: payload.ingredients }),
   });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Inventory cook failed (${res.status}): ${text}`);
-  }
-  return res.json();
 };
 
 interface AiRecipe {
@@ -66,16 +57,11 @@ interface AiRecipeResponse {
 }
 
 export const generateAiRecipe = async (payload: AiRecipePayload): Promise<Recipe> => {
-  const res = await fetch(`${API_BASE_URL}/api/ai/recipes`, {
+  const data = await apiFetchJson<AiRecipeResponse>(`/api/ai/recipes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`AI recipe generation failed (${res.status}): ${text}`);
-  }
-  const data: AiRecipeResponse = await res.json();
   if (!data.recipes || data.recipes.length === 0) {
     throw new Error("AI did not return any recipes");
   }
@@ -130,15 +116,10 @@ interface CookIdeasResponse {
 }
 
 export const generateCookIdeas = async (payload: CookIdeaPayload): Promise<CookIdea[]> => {
-  const res = await fetch(`${API_BASE_URL}/api/recipes/generate`, {
+  const data = await apiFetchJson<CookIdeasResponse>(`/api/recipes/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Cook ideas generation failed (${res.status}): ${text}`);
-  }
-  const data: CookIdeasResponse = await res.json();
   return data.dishes || [];
 };

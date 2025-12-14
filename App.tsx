@@ -7,8 +7,10 @@ import { RecipeDetailModal } from './components/RecipeDetailModal';
 import RecipePopup from './components/RecipePopup';
 import { CookTab, CookIdea } from './components/CookTab';
 import { Ingredient, IngredientCategory, MealPlan, CuisineType, ShoppingItem, Recipe, MealTypeOption } from './types';
-import { Settings, X, Send, Refrigerator, Package, ShoppingCart, Heart, Flame } from 'lucide-react';
+import { X, Send, Refrigerator, Package, ShoppingCart, Heart, Flame } from 'lucide-react';
 import { fetchFavorites, generateAiRecipe, generateCookIdeas } from './services/recipeService';
+import { useAuth } from './services/auth/AuthProvider';
+import Login from './components/Login';
 
 type Tab = 'fridge' | 'inventory' | 'cook' | 'shopping' | 'favorites';
 
@@ -32,11 +34,7 @@ const DEFAULT_SHOPPING: ShoppingItem[] = [
 ];
 
 const App: React.FC = () => {
-  // --- User/Profile State ---
-  const [currentUser] = useState<{name: string; email: string; avatar?: string}>({
-    name: 'Guest',
-    email: 'guest@chefmate.app'
-  });
+  const { user, loading: authLoading, logout } = useAuth();
 
   // --- App Data State ---
   const [inventory, setInventory] = useState<Ingredient[]>([]);
@@ -44,6 +42,13 @@ const App: React.FC = () => {
   const [dataHydrated, setDataHydrated] = useState(false);
 
   useEffect(() => {
+    if (!user) {
+      setInventory([]);
+      setShoppingItems([]);
+      setDataHydrated(false);
+      return;
+    }
+
     if (typeof window === 'undefined') {
       setInventory(DEFAULT_INVENTORY);
       setShoppingItems(DEFAULT_SHOPPING);
@@ -75,25 +80,25 @@ const App: React.FC = () => {
     } finally {
       setDataHydrated(true);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    if (!dataHydrated || typeof window === 'undefined') return;
+    if (!dataHydrated || typeof window === 'undefined' || !user) return;
     try {
       localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
     } catch (err) {
       console.error('Failed to persist inventory', err);
     }
-  }, [inventory, dataHydrated]);
+  }, [inventory, dataHydrated, user]);
 
   useEffect(() => {
-    if (!dataHydrated || typeof window === 'undefined') return;
+    if (!dataHydrated || typeof window === 'undefined' || !user) return;
     try {
       localStorage.setItem(SHOPPING_STORAGE_KEY, JSON.stringify(shoppingItems));
     } catch (err) {
       console.error('Failed to persist shopping list', err);
     }
-  }, [shoppingItems, dataHydrated]);
+  }, [shoppingItems, dataHydrated, user]);
 
   const [mealPlan, setMealPlan] = useState<MealPlan>({});
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -123,6 +128,21 @@ const App: React.FC = () => {
     'Cantonese', 'Sichuan', 'Fujian', 'Hunan', 
     'Jiangsu', 'Zhejiang', 'Anhui', 'Shandong', 'General'
   ];
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <p className="text-lg font-semibold">Checking your session…</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login />;
+  }
+
+  const displayName = user.email?.split('@')[0] || user.email;
+  const userInitial = displayName?.charAt(0)?.toUpperCase() || 'U';
 
   // --- Handlers ---
 
@@ -307,11 +327,9 @@ const App: React.FC = () => {
           <h1 className="text-xl font-bold tracking-tight text-slate-900">ChefMate</h1>
         </div>
         <button onClick={() => setShowPrefs(true)} className="p-1.5 bg-slate-50 rounded-full text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors">
-          {currentUser?.avatar ? (
-            <img src={currentUser.avatar} alt="Avatar" className="w-6 h-6 rounded-full" />
-          ) : (
-            <Settings className="w-5 h-5" />
-          )}
+          <div className="w-7 h-7 rounded-full bg-indigo-600 text-white font-semibold flex items-center justify-center">
+            {userInitial}
+          </div>
         </button>
       </div>
 
@@ -511,16 +529,19 @@ const App: React.FC = () => {
               <div className="p-6 border-b border-slate-100 bg-slate-50/50">
                  <div className="flex items-center gap-4 mb-3">
                    <div className="w-16 h-16 rounded-full shadow-sm border-2 border-white bg-indigo-50 text-indigo-700 flex items-center justify-center text-2xl font-bold">
-                     {currentUser.name.charAt(0)}
+                     {userInitial}
                    </div>
                    <div>
-                     <h4 className="text-lg font-bold text-slate-900">{currentUser.name}</h4>
-                     <p className="text-sm text-slate-500 font-medium">{currentUser.email}</p>
+                     <h4 className="text-lg font-bold text-slate-900">{displayName}</h4>
+                     <p className="text-sm text-slate-500 font-medium">{user.email}</p>
                    </div>
                  </div>
-                 <p className="text-sm text-slate-600">
-                   Guest mode is enabled. Sign-in will be added when server auth is available.
-                 </p>
+                 <button
+                   onClick={logout}
+                   className="mt-2 px-4 py-2 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800 transition"
+                 >
+                   Sign out
+                 </button>
               </div>
 
               {/* Cuisine Preferences */}
@@ -562,7 +583,7 @@ const App: React.FC = () => {
                 >
                   Close
                 </button>
-                <p className="text-center text-xs text-slate-400 mt-4 font-medium">ChefMate v1.0.2 • Guest mode</p>
+                <p className="text-center text-xs text-slate-400 mt-4 font-medium">ChefMate v1.0.2 • Signed in as {displayName}</p>
               </div>
             </div>
           </div>
