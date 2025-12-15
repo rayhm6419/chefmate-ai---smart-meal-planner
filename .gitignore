@@ -35,3 +35,4 @@ backend/target/
 
 # Local Spring Boot config (do not commit secrets)
 backend/src/main/resources/application.yml
+.env
