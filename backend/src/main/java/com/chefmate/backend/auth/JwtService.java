@@ -37,7 +37,7 @@ public class JwtService {
         Instant expiry = now.plusMillis(expirationMillis);
         return Jwts.builder()
                 .setSubject(user.getId())
-                .setClaims(Map.of("email", user.getEmail()))
+                .addClaims(Map.of("email", user.getEmail()))
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(expiry))
                 .signWith(signingKey, SignatureAlgorithm.HS256)
@@ -55,7 +55,11 @@ public class JwtService {
 
     public String extractUserId(String token) {
         Claims claims = parseClaims(token);
-        return claims.getSubject();
+        String sub = claims.getSubject();
+        if (!StringUtils.hasText(sub)) {
+            throw new IllegalArgumentException("Token subject is missing");
+        }
+        return sub;
     }
 
     public String extractEmail(String token) {

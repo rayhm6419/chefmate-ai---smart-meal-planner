@@ -129,21 +129,6 @@ const App: React.FC = () => {
     'Jiangsu', 'Zhejiang', 'Anhui', 'Shandong', 'General'
   ];
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-        <p className="text-lg font-semibold">Checking your session…</p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Login />;
-  }
-
-  const displayName = user.email?.split('@')[0] || user.email;
-  const userInitial = displayName?.charAt(0)?.toUpperCase() || 'U';
-
   // --- Handlers ---
 
   const toggleCuisine = (c: CuisineType) => {
@@ -223,6 +208,10 @@ const App: React.FC = () => {
   }, []);
 
   const askForRecipe = useCallback(async (prompt: string) => {
+    if (!user) {
+      setFavoritesError('Please sign in to generate recipes.');
+      return false;
+    }
     setFavoritesError(null);
     setFavoritesGenerating(true);
     try {
@@ -243,7 +232,7 @@ const App: React.FC = () => {
     } finally {
       setFavoritesGenerating(false);
     }
-  }, [selectedDate]);
+  }, [selectedDate, user]);
 
   const handleGenerateFavorite = useCallback(async () => {
     const defaultPrompt = "Give me a quick dinner idea for tonight that is easy to cook.";
@@ -258,6 +247,10 @@ const App: React.FC = () => {
   };
 
   const handleCookWithInventory = useCallback(async (items: { id: string; name: string; icon?: string }[]) => {
+    if (!user) {
+      setCookError('Please sign in to start cooking.');
+      return;
+    }
     setFavoritesError(null);
     setCookError(null);
     setCookGenerating(true);
@@ -277,9 +270,13 @@ const App: React.FC = () => {
     } finally {
       setCookGenerating(false);
     }
-  }, []);
+  }, [user]);
 
   const handleRegenerateCook = useCallback(async () => {
+    if (!user) {
+      setCookError('Please sign in to cook.');
+      return;
+    }
     if (!lastCookPayload) return;
     setCookGenerating(true);
     setCookError(null);
@@ -296,7 +293,7 @@ const App: React.FC = () => {
     } finally {
       setCookGenerating(false);
     }
-  }, [lastCookPayload]);
+  }, [lastCookPayload, user]);
 
   const handleSelectCookIdea = (idea: CookIdea) => {
     setPopupSelectedId(idea.id);
@@ -308,6 +305,21 @@ const App: React.FC = () => {
       loadFavorites(selectedDate);
     }
   }, [activeTab, selectedDate, loadFavorites]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <p className="text-lg font-semibold">Checking your session…</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login />;
+  }
+
+  const displayName = user.email?.split('@')[0] || user.email;
+  const userInitial = displayName?.charAt(0)?.toUpperCase() || 'U';
 
   if (!dataHydrated) {
     return (

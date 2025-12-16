@@ -31,8 +31,8 @@ public class AuthService {
 
         String hashed = passwordEncoder.encode(request.getPassword());
         User user = new User(normalizedEmail, hashed);
-        userRepository.save(user);
-        String token = jwtService.generateToken(user);
+        User saved = userRepository.save(user);
+        String token = jwtService.generateToken(saved);
         return AuthResponse.from(token, user);
     }
 
