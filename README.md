@@ -21,6 +21,19 @@ View your app in AI Studio: https://ai.studio/apps/temp/1
 3. Run the app:
    `npm run dev`
 
+## Backend (Spring Boot) quick start
+
+- Inline envs (zsh-safe: quote values that contain `&`):  
+  `cd backend && MONGODB_URI='mongodb+srv://...' JWT_SECRET='your-long-secret' mvn spring-boot:run`
+- Load from `.env` (no surrounding quotes in the file):  
+  ```
+  cd backend
+  set -a; source ../.env; set +a
+  mvn spring-boot:run
+  ```
+- Health check: `curl http://127.0.0.1:8080/health/mongo` (expects `{"ok":true}` when Mongo is reachable).
+- If you see `docker: command not found`, Docker Desktop is not installed; you can run locally with `mvn spring-boot:run` instead of Docker.
+
 ## Deploying to Render
 
 - Render defaults to Node 16, which is incompatible with Vite 6 and React 19. Set the Node version to **20** (or later) in your Render service or respect the included [.nvmrc](.nvmrc) to avoid build failures like exit code 27.

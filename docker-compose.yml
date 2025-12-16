@@ -6,6 +6,7 @@ services:
       context: ./backend
     environment:
       - MONGODB_URI=${MONGODB_URI}
+      - SPRING_DATA_MONGODB_URI=${MONGODB_URI}
       - JWT_SECRET=${JWT_SECRET}
     ports:
       - "8080:8080"

@@ -5,8 +5,10 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.crypto.SecretKey;
 import java.time.Instant;
@@ -16,16 +18,17 @@ import java.util.Map;
 @Component
 public class JwtService {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtService.class);
+    private static final int MIN_SECRET_LENGTH = 32; // bytes
+
     private final SecretKey signingKey;
     private final long expirationMillis;
 
     public JwtService(
             @Value("${app.jwt.secret}") String secret,
             @Value("${app.jwt.expiration-ms:2592000000}") long expirationMillis) {
-        if (!StringUtils.hasText(secret)) {
-            throw new IllegalArgumentException("JWT secret is not configured");
-        }
-        this.signingKey = Keys.hmacShaKeyFor(secret.getBytes());
+        String cleaned = sanitizeSecret(secret);
+        this.signingKey = Keys.hmacShaKeyFor(cleaned.getBytes());
         this.expirationMillis = expirationMillis;
     }
 
@@ -66,5 +69,20 @@ public class JwtService {
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
+    }
+
+    private String sanitizeSecret(String secret) {
+        if (!StringUtils.hasText(secret)) {
+            throw new IllegalArgumentException("JWT_SECRET is missing; provide a long random string (>=32 chars) and avoid quotes.");
+        }
+        String trimmed = secret.trim();
+        if ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+            trimmed = trimmed.substring(1, trimmed.length() - 1).trim();
+        }
+        if (trimmed.length() < MIN_SECRET_LENGTH) {
+            throw new IllegalArgumentException("JWT_SECRET is too short; use at least 32 characters.");
+        }
+        log.info("JWT secret configured: present=true, length={}", trimmed.length());
+        return trimmed;
     }
 }
