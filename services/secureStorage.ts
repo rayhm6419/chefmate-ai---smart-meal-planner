@@ -1,5 +1,4 @@
 import { Capacitor } from '@capacitor/core';
-import { SecureStoragePlugin } from 'capacitor-secure-storage-plugin';
 
 const TOKEN_KEY = 'chefmate.auth.token';
 const isNative = Capacitor.isNativePlatform();
