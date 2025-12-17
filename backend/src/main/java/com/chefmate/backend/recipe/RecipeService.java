@@ -11,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -28,7 +27,6 @@ public class RecipeService {
         this.geminiClient = geminiClient;
     }
 
-    @Transactional(readOnly = true)
     public List<RecipeDto> findFavorites(LocalDate date, MealType mealType) {
         return recipeRepository.findAll().stream()
             .filter(r -> Boolean.TRUE.equals(r.getFavorite()))
@@ -38,7 +36,6 @@ public class RecipeService {
             .toList();
     }
 
-    @Transactional
     public RecipeDto generateAndSaveAiRecipe(AiRecipeRequest request) {
         String systemPrompt = buildSystemPrompt();
         String userPrompt = buildUserPrompt(request);
@@ -58,6 +55,8 @@ public class RecipeService {
         recipe.setFavorite(true);
         recipe.setPlannedDate(request.date());
         recipe.setPlannedMealSlot(request.mealType().name().toLowerCase());
+        recipe.setCreatedAt(java.time.LocalDateTime.now());
+        recipe.setUpdatedAt(recipe.getCreatedAt());
 
         RecipeMapper.applyLists(recipe, payload.ingredients(), payload.steps(), payload.tips());
 

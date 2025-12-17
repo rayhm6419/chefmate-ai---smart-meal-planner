@@ -3,12 +3,12 @@ package com.chefmate.backend.inventory;
 import com.chefmate.backend.entity.InventoryItem;
 import java.time.LocalDate;
 import java.util.List;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
-public interface InventoryItemRepository extends JpaRepository<InventoryItem, Long> {
-    List<InventoryItem> findByUserIdAndCategoryOrderByExpiryDateAsc(Long userId, InventoryCategory category);
+public interface InventoryItemRepository extends MongoRepository<InventoryItem, String> {
+    List<InventoryItem> findByUserIdAndCategoryOrderByExpiryDateAsc(String userId, InventoryCategory category);
 
-    List<InventoryItem> findByUserId(Long userId);
+    List<InventoryItem> findByUserId(String userId);
 
-    void deleteByIdAndUserId(Long id, Long userId);
+    void deleteByIdAndUserId(String id, String userId);
 }

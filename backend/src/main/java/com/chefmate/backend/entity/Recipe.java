@@ -2,89 +2,52 @@ package com.chefmate.backend.entity;
 
 import com.chefmate.backend.recipe.Difficulty;
 import com.chefmate.backend.recipe.MealType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-@Entity
+@Document(collection = "recipes")
 public class Recipe {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Column(nullable = false)
     private String title;
 
-    @Column(length = 500)
     private String shortDescription;
 
     private Integer servings;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
     private MealType mealType;
 
-    @Column(length = 100)
     private String cuisine;
 
     private Integer cookTimeMinutes;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
     private Difficulty difficulty;
 
-    @Column(columnDefinition = "TEXT")
     private String ingredientsJson;
 
-    @Column(columnDefinition = "TEXT")
     private String stepsJson;
 
-    @Column(columnDefinition = "TEXT")
     private String tipsJson;
 
-    @Column(nullable = false)
     private Boolean favorite = true;
 
     private LocalDate plannedDate;
 
-    @Column(length = 50)
     private String plannedMealSlot;
 
-    @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    @PrePersist
-    public void prePersist() {
-        LocalDateTime now = LocalDateTime.now();
-        this.createdAt = now;
-        this.updatedAt = now;
-        if (favorite == null) {
-            favorite = true;
-        }
-    }
-
-    @PreUpdate
-    public void preUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 

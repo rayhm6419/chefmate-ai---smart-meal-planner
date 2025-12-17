@@ -52,7 +52,7 @@ public class InventoryController {
 
     @PutMapping("/{id}")
     public ResponseEntity<InventoryItemDto> update(
-        @PathVariable("id") Long id,
+        @PathVariable("id") String id,
         @Valid @RequestBody UpdateInventoryItemRequest request
     ) {
         InventoryItemDto updated = inventoryService.updateItem(id, request);
@@ -60,7 +60,7 @@ public class InventoryController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable("id") Long id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         inventoryService.deleteItem(id);
         return ResponseEntity.noContent().build();
     }

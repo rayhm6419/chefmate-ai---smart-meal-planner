@@ -3,16 +3,14 @@ package com.chefmate.backend.repository;
 import com.chefmate.backend.entity.MealPlan;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
-public interface MealPlanRepository extends JpaRepository<MealPlan, UUID> {
-    List<MealPlan> findByUserIdAndPlanDate(UUID userId, LocalDate planDate);
+public interface MealPlanRepository extends MongoRepository<MealPlan, String> {
+    List<MealPlan> findByUserIdAndPlanDate(String userId, LocalDate planDate);
 
-    void deleteByUserIdAndPlanDate(UUID userId, LocalDate planDate);
+    void deleteByUserIdAndPlanDate(String userId, LocalDate planDate);
 
-    // Alias for clarity with "date" wording; matches Spring Data naming.
-    default void deleteByUserIdAndDate(UUID userId, LocalDate date) {
+    default void deleteByUserIdAndDate(String userId, LocalDate date) {
         deleteByUserIdAndPlanDate(userId, date);
     }
 }

@@ -1,85 +1,45 @@
 package com.chefmate.backend.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.index.Indexed;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.UUID;
 
-@Entity
-@Table(
-    name = "meal_plans",
-    uniqueConstraints = {
-        @UniqueConstraint(name = "uq_meal_plan_user_date_meal", columnNames = {"user_id", "plan_date", "meal"})
-    }
-)
+@Document(collection = "meal_plans")
 public class MealPlan {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "id", nullable = false, updatable = false)
-    private UUID id;
+    private String id;
 
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
+    @Indexed
+    private String userId;
 
-    @Column(name = "plan_date", nullable = false)
     private LocalDate planDate;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "meal", nullable = false, length = 16)
     private MealType meal;
 
-    @Column(name = "title")
     private String title;
 
-    @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    public MealPlan() {
-        // JPA requires a default constructor
-    }
-
-    @PrePersist
-    public void prePersist() {
-        Instant now = Instant.now();
-        this.createdAt = now;
-        this.updatedAt = now;
-    }
-
-    @PreUpdate
-    public void preUpdate() {
-        this.updatedAt = Instant.now();
-    }
-
-    public UUID getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(String id) {
         this.id = id;
     }
 
-    public UUID getUserId() {
+    public String getUserId() {
         return userId;
     }
 
-    public void setUserId(UUID userId) {
+    public void setUserId(String userId) {
         this.userId = userId;
     }
 

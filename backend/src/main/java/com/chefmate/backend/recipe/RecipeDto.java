@@ -4,7 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 public record RecipeDto(
-    Long id,
+    String id,
     String title,
     String shortDescription,
     Integer servings,

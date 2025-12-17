@@ -6,11 +6,10 @@ import com.chefmate.backend.repository.ShoppingItemRepository;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-@Transactional
 public class ShoppingService {
 
     private final ShoppingItemRepository shoppingItemRepository;
@@ -19,15 +18,14 @@ public class ShoppingService {
         this.shoppingItemRepository = shoppingItemRepository;
     }
 
-    @Transactional(readOnly = true)
     public List<ShoppingItemDto> listItems() {
-        Long userId = DemoUsers.CURRENT_USER_ID;
+        String userId = DemoUsers.CURRENT_USER_ID_STR; // TODO replace with JWT user id
         List<ShoppingItem> items = shoppingItemRepository.findByUserIdOrderByCheckedAscCreatedAtAsc(userId);
         return items.stream().map(this::toDto).toList();
     }
 
     public ShoppingItemDto createItem(CreateShoppingItemRequest request) {
-        Long userId = DemoUsers.CURRENT_USER_ID;
+        String userId = DemoUsers.CURRENT_USER_ID_STR; // TODO replace with JWT user id
         ShoppingItem item = new ShoppingItem();
         item.setUserId(userId);
         item.setName(request.name());
@@ -35,12 +33,14 @@ public class ShoppingService {
         item.setUnit(request.unit());
         item.setCategory(request.category());
         item.setChecked(false);
+        item.setCreatedAt(LocalDateTime.now());
+        item.setUpdatedAt(item.getCreatedAt());
         ShoppingItem saved = shoppingItemRepository.save(item);
         return toDto(saved);
     }
 
-    public ShoppingItemDto updateItem(Long id, UpdateShoppingItemRequest request) {
-        Long userId = DemoUsers.CURRENT_USER_ID;
+    public ShoppingItemDto updateItem(String id, UpdateShoppingItemRequest request) {
+        String userId = DemoUsers.CURRENT_USER_ID_STR; // TODO replace with JWT user id
         ShoppingItem existing = shoppingItemRepository.findByIdAndUserId(id, userId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shopping item not found"));
 
@@ -51,23 +51,25 @@ public class ShoppingService {
         if (request.checked() != null) {
             existing.setChecked(request.checked());
         }
+        existing.setUpdatedAt(LocalDateTime.now());
 
         ShoppingItem saved = shoppingItemRepository.save(existing);
         return toDto(saved);
     }
 
-    public void deleteItem(Long id) {
-        Long userId = DemoUsers.CURRENT_USER_ID;
+    public void deleteItem(String id) {
+        String userId = DemoUsers.CURRENT_USER_ID_STR; // TODO replace with JWT user id
         ShoppingItem existing = shoppingItemRepository.findByIdAndUserId(id, userId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shopping item not found"));
         shoppingItemRepository.delete(existing);
     }
 
-    public ShoppingItemDto setChecked(Long id, boolean checked) {
-        Long userId = DemoUsers.CURRENT_USER_ID;
+    public ShoppingItemDto setChecked(String id, boolean checked) {
+        String userId = DemoUsers.CURRENT_USER_ID_STR; // TODO replace with JWT user id
         ShoppingItem existing = shoppingItemRepository.findByIdAndUserId(id, userId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shopping item not found"));
         existing.setChecked(checked);
+        existing.setUpdatedAt(LocalDateTime.now());
         ShoppingItem saved = shoppingItemRepository.save(existing);
         return toDto(saved);
     }
@@ -85,5 +87,3 @@ public class ShoppingService {
         );
     }
 }
-
-

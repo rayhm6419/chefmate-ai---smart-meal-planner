@@ -4,12 +4,11 @@ import com.chefmate.backend.DemoUsers;
 import com.chefmate.backend.entity.MealPlan;
 import com.chefmate.backend.entity.MealType;
 import com.chefmate.backend.repository.MealPlanRepository;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -22,16 +21,15 @@ public class MealPlanService {
     }
 
     public GetMealPlansResponse getPlansForDate(LocalDate date) {
-        UUID userId = DemoUsers.DEMO_USER_ID;
+        String userId = DemoUsers.DEMO_USER_ID_STR;
         List<MealPlanDto> plans = mealPlanRepository.findByUserIdAndPlanDate(userId, date).stream()
             .map(MealPlanService::toDto)
             .toList();
         return new GetMealPlansResponse(date, plans);
     }
 
-    @Transactional
     public GetMealPlansResponse savePlansForDate(LocalDate date, List<MealPlanDto> plans) {
-        UUID userId = DemoUsers.DEMO_USER_ID;
+        String userId = DemoUsers.DEMO_USER_ID_STR;
 
         if (plans == null || plans.isEmpty()) {
             mealPlanRepository.deleteByUserIdAndPlanDate(userId, date);
@@ -58,13 +56,15 @@ public class MealPlanService {
         );
     }
 
-    private static MealPlan toEntity(MealPlanDto dto, UUID userId, LocalDate planDate) {
+    private static MealPlan toEntity(MealPlanDto dto, String userId, LocalDate planDate) {
         MealPlan entity = new MealPlan();
         entity.setUserId(userId);
         entity.setPlanDate(planDate);
         entity.setMeal(parseMealType(dto.meal()));
         entity.setTitle(dto.title());
         entity.setNotes(dto.notes());
+        entity.setCreatedAt(Instant.now());
+        entity.setUpdatedAt(entity.getCreatedAt());
         return entity;
     }
 

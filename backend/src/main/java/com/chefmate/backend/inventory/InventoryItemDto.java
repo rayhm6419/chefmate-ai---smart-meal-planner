@@ -3,7 +3,7 @@ package com.chefmate.backend.inventory;
 import java.time.LocalDate;
 
 public record InventoryItemDto(
-    Long id,
+    String id,
     String name,
     InventoryCategory category,
     Integer quantity,

@@ -3,7 +3,7 @@ package com.chefmate.backend.shopping;
 import java.time.LocalDateTime;
 
 public record ShoppingItemDto(
-    Long id,
+    String id,
     String name,
     Integer quantity,
     String unit,
@@ -13,5 +13,4 @@ public record ShoppingItemDto(
     LocalDateTime updatedAt
 ) {
 }
-
 

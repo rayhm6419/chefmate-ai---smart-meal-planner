@@ -42,7 +42,7 @@ public class ShoppingController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ShoppingItemDto> update(
-        @PathVariable("id") Long id,
+        @PathVariable("id") String id,
         @Valid @RequestBody UpdateShoppingItemRequest request
     ) {
         ShoppingItemDto updated = shoppingService.updateItem(id, request);
@@ -50,7 +50,7 @@ public class ShoppingController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable("id") Long id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         shoppingService.deleteItem(id);
         return ResponseEntity.noContent().build();
     }
@@ -60,12 +60,11 @@ public class ShoppingController {
      */
     @PatchMapping("/{id}/checked")
     public ResponseEntity<ShoppingItemDto> setChecked(
-        @PathVariable("id") Long id,
+        @PathVariable("id") String id,
         @RequestParam("value") boolean checked
     ) {
         ShoppingItemDto updated = shoppingService.setChecked(id, checked);
         return ResponseEntity.ok(updated);
     }
 }
-
 
