@@ -13,7 +13,7 @@ interface InventoryProps {
   ingredients: Ingredient[];
   onAdd: (name: string, category: IngredientCategory, expiryDate?: string, quantity?: number, unit?: string) => void;
   onRemove: (id: string) => void;
-  onUpdate: (id: string, quantity?: number, unit?: string) => void;
+  onUpdate: (id: string, name: string, category: IngredientCategory, expiryDate?: string, quantity?: number, unit?: string) => void;
   customBackground: string | null;
   onUpdateBackground: (bg: string) => void;
   viewMode: 'fridge' | 'list';
@@ -239,7 +239,7 @@ export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemo
     console.log('[Inventory UI] Add clicked', { formName, formCategory, formExpiry, quantity, formUnit });
     
     if (editingItem) {
-      onUpdate(editingItem.id, quantity, formUnit || undefined);
+      onUpdate(editingItem.id, formName, formCategory, formExpiry || undefined, quantity, formUnit || undefined);
     } else {
       onAdd(formName, formCategory, formExpiry || undefined, quantity, formUnit || undefined);
     }
@@ -574,9 +574,12 @@ export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemo
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
+                            console.log('[Inventory UI] delete id', item.id, item);
                             onRemove(item.id);
                           }} 
-                          className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors flex-shrink-0"
+                          type="button"
+                          disabled={false}
+                          className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

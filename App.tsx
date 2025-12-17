@@ -8,10 +8,12 @@ import RecipePopup from './components/RecipePopup';
 import { CookTab, CookIdea } from './components/CookTab';
 import { Ingredient, IngredientCategory, MealPlan, CuisineType, ShoppingItem, Recipe, MealTypeOption } from './types';
 import { X, Send, Refrigerator, Package, ShoppingCart, Heart, Flame } from 'lucide-react';
-import { fetchFavorites, generateAiRecipe, generateCookIdeas } from './services/recipeService';
+import { generateAiRecipe, generateCookIdeas } from './services/recipeService';
+import { getFavorites, addFavorite, removeFavoriteByRecipe } from './services/favoritesService';
 import { useAuth } from './services/auth/AuthProvider';
 import Login from './components/Login';
-import { apiFetchJson } from './services/apiClient';
+import { apiFetchJson, apiFetch } from './services/apiClient';
+import { Favorite } from './services/favoritesService';
 
 type Tab = 'fridge' | 'inventory' | 'cook' | 'shopping' | 'favorites';
 
@@ -41,6 +43,7 @@ const App: React.FC = () => {
   const [inventory, setInventory] = useState<Ingredient[]>([]);
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
   const [dataHydrated, setDataHydrated] = useState(false);
+  const [mealPlanLoading, setMealPlanLoading] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -104,7 +107,7 @@ const App: React.FC = () => {
   const [mealPlan, setMealPlan] = useState<MealPlan>({});
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [homeInput, setHomeInput] = useState('');
-  const [favorites, setFavorites] = useState<Recipe[]>([]);
+  const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [favoritesGenerating, setFavoritesGenerating] = useState(false);
   const [cookGenerating, setCookGenerating] = useState(false);
@@ -140,16 +143,6 @@ const App: React.FC = () => {
 
   const handleAddIngredient = async (name: string, category: IngredientCategory, expiryDate?: string, quantity?: number, unit?: string) => {
     console.log('[App] handleAddInventoryItem called', { name, category, expiryDate, quantity, unit });
-    const payloadCategory = (() => {
-      switch (category) {
-        case 'Vegetable': return 'VEGETABLE';
-        case 'Meat': return 'MEAT';
-        case 'Fruit': return 'FRUIT';
-        case 'Dairy': return 'DAIRY';
-        default: return 'OTHER';
-      }
-    })();
-
     try {
       const created = await apiFetchJson<Ingredient>(
         `/api/inventory`,
@@ -158,27 +151,98 @@ const App: React.FC = () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name,
-            category: payloadCategory,
+            category: normalizeCategoryForBackend(category),
             quantity,
             unit,
             expiryDate
           })
         }
       );
-      setInventory(prev => [...prev, created]);
+      const mapped = { ...created, category: normalizeCategoryForUi((created as any).category) } as Ingredient;
+      setInventory(prev => [...prev, mapped]);
     } catch (e) {
       console.error("[App] Add inventory item failed", e);
     }
   };
 
-  const handleUpdateIngredient = (id: string, quantity?: number, unit?: string) => {
-    setInventory(prev => prev.map(item => 
-      item.id === id ? { ...item, quantity, unit } : item
-    ));
+  const normalizeCategoryForBackend = (cat: IngredientCategory) => {
+    switch (cat) {
+      case 'Vegetable': return 'VEGETABLE';
+      case 'Meat': return 'MEAT';
+      case 'Fruit': return 'FRUIT';
+      case 'Dairy': return 'DAIRY';
+      case 'Grain': return 'GRAIN';
+      case 'Snack': return 'SNACK';
+      case 'Spice': return 'SPICE';
+      default: return 'OTHER';
+    }
   };
 
+  const normalizeCategoryForUi = (cat?: string): IngredientCategory => {
+    switch ((cat || '').toUpperCase()) {
+      case 'VEGETABLE': return 'Vegetable';
+      case 'MEAT': return 'Meat';
+      case 'FRUIT': return 'Fruit';
+      case 'DAIRY': return 'Dairy';
+      case 'GRAIN': return 'Grain';
+      case 'SNACK': return 'Snack';
+      case 'SPICE': return 'Spice';
+      default: return 'Other';
+    }
+  };
+
+  const handleUpdateIngredient = async (id: string, name: string, category: IngredientCategory, expiryDate?: string, quantity?: number, unit?: string) => {
+    console.log('[App] handleUpdateInventoryItem called', { id, name, category, expiryDate, quantity, unit });
+    try {
+      const payload = {
+        name,
+        category: normalizeCategoryForBackend(category),
+        quantity,
+        unit,
+        expiryDate
+      };
+      const updated = await apiFetchJson<Ingredient>(`/api/inventory/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const mapped = { ...updated, category: normalizeCategoryForUi((updated as any).category) } as Ingredient;
+      setInventory(prev => prev.map(item => item.id === id ? mapped : item));
+    } catch (e) {
+      console.error('[App] Update inventory item failed', e);
+    }
+  };
+
+  const [deletingInventoryIds, setDeletingInventoryIds] = useState<Set<string>>(new Set());
+
   const handleRemoveIngredient = (id: string) => {
+    setDeletingInventoryIds(prev => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+
+    // Optimistically remove from UI
     setInventory(prev => prev.filter(item => item.id !== id));
+
+    (async () => {
+      try {
+        const res = await apiFetch(`/api/inventory/${id}`, { method: 'DELETE' });
+        if (!res.ok) {
+          throw new Error(`Delete failed ${res.status}`);
+        }
+      } catch (e) {
+        console.error('[App] Delete inventory item failed', e);
+        // optional: re-fetch inventory here if desired
+      } finally {
+        setDeletingInventoryIds(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+    })();
   };
 
   const ingredientIcon = (category: IngredientCategory) => {
@@ -194,12 +258,86 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUpdatePlan = (date: string, mealType: 'lunch' | 'dinner', value: string) => {
+  const fetchMealPlanForDate = useCallback(async (date: string) => {
+    if (!user) return;
+    try {
+      setMealPlanLoading(true);
+      const res = await apiFetchJson<{ date: string; plans: { meal: string; title?: string; notes?: string }[] }>(
+        `/api/meal-plans?date=${date}`
+      );
+      const dayPlan = res.plans.reduce<Record<string, string | undefined>>((acc, plan) => {
+        const key = plan.meal.toLowerCase();
+        acc[key] = plan.title || '';
+        return acc;
+      }, {});
+      setMealPlan(prev => ({ ...prev, [date]: dayPlan }));
+    } catch (e) {
+      console.error('[App] Fetch meal plan failed', e);
+    } finally {
+      setMealPlanLoading(false);
+    }
+  }, [user]);
+
+  const handleUpdatePlan = useCallback(async (date: string, mealType: 'lunch' | 'dinner', value: string) => {
     setMealPlan(prev => ({
       ...prev,
       [date]: { ...prev[date], [mealType]: value }
     }));
-  };
+
+    const current = mealPlan[date] || {};
+    const updated = { ...current, [mealType]: value };
+    const plans = [];
+    if (updated.lunch) {
+      plans.push({ meal: 'LUNCH', title: updated.lunch, notes: null });
+    }
+    if (updated.dinner) {
+      plans.push({ meal: 'DINNER', title: updated.dinner, notes: null });
+    }
+
+    try {
+      await apiFetchJson(`/api/meal-plans/${date}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plans })
+      });
+    } catch (e) {
+      console.error('[App] Save meal plan failed', e);
+    }
+  }, [mealPlan]);
+
+  const mapCookIdeaToFavorite = (idea: CookIdea): Favorite => ({
+    id: idea.id,
+    recipeId: idea.id,
+    title: idea.title,
+    shortDescription: idea.shortDescription,
+    cookTimeMinutes: idea.estimatedTime,
+    difficulty: idea.difficulty as any,
+    servings: 0,
+    cuisine: undefined,
+    ingredients: (idea.ingredients || []).map((n) => ({ name: n })),
+    steps: idea.steps || [],
+    tips: [],
+    mealType: 'DINNER',
+    favorite: true,
+    plannedDate: undefined,
+    plannedMealSlot: undefined
+  });
+
+  const toggleFavorite = useCallback(async (idea: CookIdea) => {
+    if (!user) return;
+    const existing = favorites.find(f => f.recipeId === idea.id);
+    try {
+      if (existing) {
+        await removeFavoriteByRecipe(idea.id);
+        setFavorites(prev => prev.filter(f => f.recipeId !== idea.id));
+      } else {
+        const created = await addFavorite(mapCookIdeaToFavorite(idea));
+        setFavorites(prev => [...prev, created]);
+      }
+    } catch (e) {
+      console.error('[App] Toggle favorite failed', e);
+    }
+  }, [favorites, user]);
 
   // Shopping Handlers
   const handleAddShoppingItem = async (name: string) => {
@@ -247,11 +385,11 @@ const App: React.FC = () => {
   };
 
 
-  const loadFavorites = useCallback(async (date: string, mealType: MealTypeOption = 'DINNER') => {
+  const loadFavorites = useCallback(async () => {
     try {
       setFavoritesLoading(true);
       setFavoritesError(null);
-      const data = await fetchFavorites(date, mealType);
+      const data = await getFavorites();
       setFavorites(data);
     } catch (e) {
       console.error('Favorites fetch failed', e);
@@ -277,7 +415,7 @@ const App: React.FC = () => {
         language: 'en-US',
         date: selectedDate,
       });
-      await loadFavorites(selectedDate);
+      await loadFavorites();
       return true;
     } catch (e) {
       console.error('AI recipe generation failed', e);
@@ -355,10 +493,16 @@ const App: React.FC = () => {
   };
 
   React.useEffect(() => {
-    if (activeTab === 'favorites' && selectedDate) {
-      loadFavorites(selectedDate);
+    if (activeTab === 'favorites' && user) {
+      loadFavorites();
     }
-  }, [activeTab, selectedDate, loadFavorites]);
+  }, [activeTab, user, loadFavorites]);
+
+  React.useEffect(() => {
+    if (user && selectedDate) {
+      fetchMealPlanForDate(selectedDate);
+    }
+  }, [user, selectedDate, fetchMealPlanForDate]);
 
   if (authLoading) {
     return (
@@ -664,14 +808,16 @@ const App: React.FC = () => {
       )}
 
       {showRecipePopup && (
-        <RecipePopup
-          isOpen={showRecipePopup}
-          onClose={() => { setShowRecipePopup(false); setPopupSelectedId(null); }}
-          recipes={cookRecipes}
-          initialSelectedId={popupSelectedId}
-          onRegenerate={handleRegenerateCook}
-          isLoading={cookGenerating}
-        />
+      <RecipePopup
+        isOpen={showRecipePopup}
+        onClose={() => { setShowRecipePopup(false); setPopupSelectedId(null); }}
+        recipes={cookRecipes}
+        initialSelectedId={popupSelectedId}
+        onRegenerate={handleRegenerateCook}
+        isLoading={cookGenerating}
+        favorites={favorites}
+        onToggleFavorite={toggleFavorite}
+      />
       )}
     </div>
   );

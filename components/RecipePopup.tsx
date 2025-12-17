@@ -9,9 +9,11 @@ interface RecipePopupProps {
   initialSelectedId?: string | null;
   onRegenerate?: () => void;
   isLoading?: boolean;
+  favorites?: { recipeId: string }[];
+  onToggleFavorite?: (recipe: CookIdea) => Promise<void> | void;
 }
 
-const RecipePopup: React.FC<RecipePopupProps> = ({ isOpen, onClose, recipes, initialSelectedId, onRegenerate, isLoading }) => {
+const RecipePopup: React.FC<RecipePopupProps> = ({ isOpen, onClose, recipes, initialSelectedId, onRegenerate, isLoading, favorites = [], onToggleFavorite }) => {
   const [selectedRecipe, setSelectedRecipe] = useState<CookIdea | null>(null);
   const [liked, setLiked] = useState<boolean>(false);
 
@@ -24,6 +26,13 @@ const RecipePopup: React.FC<RecipePopupProps> = ({ isOpen, onClose, recipes, ini
       setSelectedRecipe(found || null);
     }
   }, [isOpen, initialSelectedId, recipes]);
+
+  useEffect(() => {
+    if (selectedRecipe) {
+      const isFav = favorites.some(f => f.recipeId === selectedRecipe.id);
+      setLiked(isFav);
+    }
+  }, [favorites, selectedRecipe]);
 
   if (!isOpen) return null;
 
@@ -146,7 +155,17 @@ const RecipePopup: React.FC<RecipePopupProps> = ({ isOpen, onClose, recipes, ini
                                     <h2 className="text-2xl font-bold leading-tight">{selectedRecipe.title}</h2>
                                 </div>
                                 <button
-                                  onClick={() => setLiked((prev) => !prev)}
+                                  onClick={async () => {
+                                    if (selectedRecipe && onToggleFavorite) {
+                                      try {
+                                        setLiked((prev) => !prev);
+                                        await onToggleFavorite(selectedRecipe);
+                                      } catch (e) {
+                                        // rollback on failure
+                                        setLiked((prev) => !prev);
+                                      }
+                                    }
+                                  }}
                                   className={`w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20 transition-colors ${liked ? 'text-rose-500' : 'text-white'}`}
                                 >
                                   <Heart size={20} fill={liked ? '#f43f5e' : 'transparent'} />

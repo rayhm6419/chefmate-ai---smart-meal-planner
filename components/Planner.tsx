@@ -110,7 +110,7 @@ export const Planner: React.FC<PlannerProps> = ({ mealPlan, selectedDate, onSele
                  <div className="flex items-center gap-2 mb-2">
                     <span className="text-xs font-bold bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">Lunch</span>
                  </div>
-                 <textarea
+                <textarea
                    rows={2}
                    value={currentDayPlan.lunch || ''}
                    onChange={(e) => onUpdatePlan(selectedDate, 'lunch', e.target.value)}
