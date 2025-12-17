@@ -16,6 +16,7 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ items, onAddItem, on
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItemName.trim()) return;
+    console.log('[ShoppingList] handleAdd fired', newItemName);
     onAddItem(newItemName);
     setNewItemName('');
   };

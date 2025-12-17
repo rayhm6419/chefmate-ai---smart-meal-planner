@@ -11,6 +11,7 @@ import { X, Send, Refrigerator, Package, ShoppingCart, Heart, Flame } from 'luci
 import { fetchFavorites, generateAiRecipe, generateCookIdeas } from './services/recipeService';
 import { useAuth } from './services/auth/AuthProvider';
 import Login from './components/Login';
+import { apiFetchJson } from './services/apiClient';
 
 type Tab = 'fridge' | 'inventory' | 'cook' | 'shopping' | 'favorites';
 
@@ -137,16 +138,37 @@ const App: React.FC = () => {
     );
   };
 
-  const handleAddIngredient = (name: string, category: IngredientCategory, expiryDate?: string, quantity?: number, unit?: string) => {
-    const newItem: Ingredient = {
-      id: Date.now().toString(),
-      name,
-      category,
-      expiryDate,
-      quantity,
-      unit
-    };
-    setInventory(prev => [...prev, newItem]);
+  const handleAddIngredient = async (name: string, category: IngredientCategory, expiryDate?: string, quantity?: number, unit?: string) => {
+    console.log('[App] handleAddInventoryItem called', { name, category, expiryDate, quantity, unit });
+    const payloadCategory = (() => {
+      switch (category) {
+        case 'Vegetable': return 'VEGETABLE';
+        case 'Meat': return 'MEAT';
+        case 'Fruit': return 'FRUIT';
+        case 'Dairy': return 'DAIRY';
+        default: return 'OTHER';
+      }
+    })();
+
+    try {
+      const created = await apiFetchJson<Ingredient>(
+        `/api/inventory`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            category: payloadCategory,
+            quantity,
+            unit,
+            expiryDate
+          })
+        }
+      );
+      setInventory(prev => [...prev, created]);
+    } catch (e) {
+      console.error("[App] Add inventory item failed", e);
+    }
   };
 
   const handleUpdateIngredient = (id: string, quantity?: number, unit?: string) => {
@@ -180,16 +202,48 @@ const App: React.FC = () => {
   };
 
   // Shopping Handlers
-  const handleAddShoppingItem = (name: string) => {
-    setShoppingItems(prev => [...prev, { id: Date.now().toString(), name, checked: false }]);
+  const handleAddShoppingItem = async (name: string) => {
+    console.log('[App] handleAddShoppingItem', name);
+    if (!user) {
+      return;
+    }
+    try {
+      const created = await apiFetchJson<ShoppingItem>(
+        `/api/shopping-items`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, quantity: 1, unit: "pcs", category: "OTHER" })
+        }
+      );
+      setShoppingItems(prev => [...prev, created]);
+    } catch (e) {
+      console.error("[App] Add shopping item failed", e);
+    }
   };
 
-  const handleToggleShoppingItem = (id: string) => {
+  const handleToggleShoppingItem = async (id: string) => {
     setShoppingItems(prev => prev.map(item => item.id === id ? { ...item, checked: !item.checked } : item));
+    try {
+      const item = shoppingItems.find(i => i.id === id);
+      const next = !(item?.checked ?? false);
+      await apiFetchJson<ShoppingItemDto>(`/api/shopping-items/${id}/checked?value=${next}`, {
+        method: "PATCH"
+      });
+    } catch (e) {
+      console.error("Toggle shopping item failed", e);
+    }
   };
 
-  const handleRemoveShoppingItem = (id: string) => {
+  const handleRemoveShoppingItem = async (id: string) => {
     setShoppingItems(prev => prev.filter(item => item.id !== id));
+    try {
+      await apiFetchJson<void>(`/api/shopping-items/${id}`, {
+        method: "DELETE"
+      });
+    } catch (e) {
+      console.error("Delete shopping item failed", e);
+    }
   };
 
 

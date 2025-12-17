@@ -236,6 +236,7 @@ export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemo
     if (e) e.preventDefault();
     if (!formName.trim()) return;
     const quantity = formQuantity ? parseInt(formQuantity) : undefined;
+    console.log('[Inventory UI] Add clicked', { formName, formCategory, formExpiry, quantity, formUnit });
     
     if (editingItem) {
       onUpdate(editingItem.id, quantity, formUnit || undefined);
@@ -542,7 +543,8 @@ export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemo
               ) : (
                 filteredIngredients.map(item => {
                    const isExpiringSoon = item.expiryDate && new Date(item.expiryDate) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-                   const itemStyle = magnetStyles[item.category];
+            const itemStyle = magnetStyles[item.category as keyof typeof magnetStyles] ?? magnetStyles.Other ?? magnetStyles['Vegetable'] ?? magnetStyles['Other'];
+            const Icon = ICON_MAP[itemStyle?.iconName as keyof typeof ICON_MAP] || Package;
                    return (
                     <div key={item.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
                       <div className="flex items-center justify-between group">

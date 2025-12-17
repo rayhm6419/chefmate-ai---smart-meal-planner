@@ -45,7 +45,7 @@ export interface RecipeIngredient {
 }
 
 export interface Recipe {
-  id: number;
+  id: string;
   title: string;
   shortDescription?: string;
   servings?: number;
