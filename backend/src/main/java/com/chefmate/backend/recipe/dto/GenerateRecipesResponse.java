@@ -6,6 +6,7 @@ import java.util.List;
 public class GenerateRecipesResponse {
 
     private List<Dish> dishes = new ArrayList<>();
+    private String source;
 
     public List<Dish> getDishes() {
         return dishes;
@@ -13,6 +14,14 @@ public class GenerateRecipesResponse {
 
     public void setDishes(List<Dish> dishes) {
         this.dishes = dishes;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
     }
 
     public static class Dish {

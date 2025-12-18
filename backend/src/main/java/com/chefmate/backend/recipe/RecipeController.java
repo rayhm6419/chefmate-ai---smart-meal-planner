@@ -7,6 +7,8 @@ import com.chefmate.backend.recipe.dto.InventoryRecipeResponse;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -21,6 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/recipes")
 @CrossOrigin(origins = "*")
 public class RecipeController {
+
+    private static final Logger log = LoggerFactory.getLogger(RecipeController.class);
 
     private final RecipeService recipeService;
     private final InventoryRecipeService inventoryRecipeService;
@@ -55,7 +59,10 @@ public class RecipeController {
 
     @PostMapping("/generate")
     public ResponseEntity<GenerateRecipesResponse> generateRecipes(@Valid @RequestBody GenerateRecipesRequest request) {
+        log.info("/api/recipes/generate called");
         GenerateRecipesResponse response = generateRecipesService.generate(request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok()
+            .header("X-Recipe-Source", response.getSource() == null ? "ai" : response.getSource())
+            .body(response);
     }
 }

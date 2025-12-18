@@ -21,6 +21,7 @@ public class GenerateRecipesService {
 
     private final LlmClient llmClient;
     private final ObjectMapper objectMapper;
+    private volatile List<GenerateRecipesResponse.Dish> lastSuccessfulDishes;
 
     public GenerateRecipesService(LlmClient llmClient, ObjectMapper objectMapper) {
         this.llmClient = llmClient;
@@ -32,16 +33,49 @@ public class GenerateRecipesService {
         String userPrompt = buildUserPrompt(request);
         String schema = buildJsonSchema();
 
-        String raw = llmClient.generateRecipes(systemPrompt, userPrompt, schema);
-        log.debug("GenerateRecipes raw response (truncated): {}", raw == null ? "null" : raw.substring(0, Math.min(raw.length(), 500)));
-        return parse(raw, request);
+        GenerateRecipesResponse res = new GenerateRecipesResponse();
+        AttemptResult result = attemptGeneration(systemPrompt, userPrompt, schema, request);
+        res.setDishes(result.dishes());
+        res.setSource(result.source());
+        return res;
+    }
+
+    private AttemptResult attemptGeneration(String systemPrompt, String userPrompt, String schema, GenerateRecipesRequest request) {
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                String raw = llmClient.generateRecipes(systemPrompt, userPromptWithVariation(userPrompt), schema);
+                log.debug("GenerateRecipes attempt {} raw response (truncated): {}", attempt, raw == null ? "null" : raw.substring(0, Math.min(raw.length(), 500)));
+                List<GenerateRecipesResponse.Dish> dishes = parse(raw, request);
+                if (dishes != null && dishes.size() == 3) {
+                    lastSuccessfulDishes = dishes;
+                    return new AttemptResult(dishes, "ai");
+                }
+                log.warn("GenerateRecipes attempt {} returned {} dishes, expected 3", attempt, dishes == null ? 0 : dishes.size());
+            } catch (ResponseStatusException e) {
+                log.warn("GenerateRecipes attempt {} failed: {}", attempt, e.getReason());
+            } catch (Exception e) {
+                log.warn("GenerateRecipes attempt {} failed", attempt, e);
+            }
+        }
+        if (lastSuccessfulDishes != null && !lastSuccessfulDishes.isEmpty()) {
+            log.warn("Using cached dishes fallback after AI failures");
+            return new AttemptResult(lastSuccessfulDishes, "cache");
+        }
+        log.warn("Using placeholder dishes fallback after AI failures");
+        return new AttemptResult(fallbackDishes(request), "fallback");
+    }
+
+    private String userPromptWithVariation(String basePrompt) {
+        return basePrompt + "\nVariationId: " + UUID.randomUUID() + ". Use this to diversify results.";
     }
 
     private String buildSystemPrompt() {
         return """
         You are ChefMate, an expert meal planner.
         Reply with STRICT JSON only that matches the provided schema.
-        Propose 3 to 5 dish ideas using the given ingredients.
+        Propose EXACTLY 3 dish ideas using the given ingredients.
+        The 3 dishes must be clearly different; vary cooking method, main protein, or cuisine so they are not similar.
+        If results are too similar, regenerate internally until diversity is achieved.
         """;
     }
 
@@ -62,7 +96,7 @@ public class GenerateRecipesService {
         Max time (minutes): %s
         Avoid recipe IDs: %s
         Seed: %s
-        Return 3-5 diverse dish ideas.
+        Return EXACTLY 3 diverse dish ideas.
         """.formatted(
             ingredientNames,
             cuisines,
@@ -82,7 +116,7 @@ public class GenerateRecipesService {
             "dishes": {
               "type": "array",
               "minItems": 3,
-              "maxItems": 5,
+              "maxItems": 3,
               "items": {
                 "type": "object",
                 "properties": {
@@ -104,11 +138,14 @@ public class GenerateRecipesService {
         """;
     }
 
-    private GenerateRecipesResponse parse(String raw, GenerateRecipesRequest request) {
+    private List<GenerateRecipesResponse.Dish> parse(String raw, GenerateRecipesRequest request) {
         try {
             GenerateRecipesResponse res = objectMapper.readValue(raw, GenerateRecipesResponse.class);
             if (res.getDishes() == null || res.getDishes().isEmpty()) {
                 throw new IllegalStateException("No dishes");
+            }
+            if (res.getDishes().size() != 3) {
+                throw new IllegalStateException("Expected 3 dishes but got " + res.getDishes().size());
             }
             res.getDishes().forEach(d -> {
                 if (!StringUtils.hasText(d.getId())) {
@@ -118,37 +155,47 @@ public class GenerateRecipesService {
                     d.setImageUrl("https://placehold.co/600x400?text=ChefMate");
                 }
             });
-            return res;
+            return res.getDishes();
         } catch (Exception e) {
             log.error("Failed to parse generate recipes response: {}", raw, e);
-            return fallbackResponse(request);
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI generation failed to parse");
         }
-    }
-
-    private GenerateRecipesResponse fallbackResponse(GenerateRecipesRequest request) {
-        GenerateRecipesResponse res = new GenerateRecipesResponse();
-        GenerateRecipesResponse.Dish dish = new GenerateRecipesResponse.Dish();
-        dish.setId(UUID.randomUUID().toString());
-        dish.setTitle("Stir-Fry Medley");
-        dish.setShortDescription("Quick wok stir-fry using your selected ingredients.");
-        dish.setDifficulty("easy");
-        dish.setEstimatedTime(20);
-        dish.setImageUrl("https://placehold.co/600x400?text=ChefMate");
-        List<String> ing = request.getIngredients().stream()
-            .map(GenerateRecipesRequest.Ingredient::getName)
-            .collect(Collectors.toList());
-        dish.setIngredients(ing.isEmpty() ? List.of("Mixed veggies", "Oil", "Soy sauce") : ing);
-        dish.setSteps(List.of(
-            "Prep all ingredients into bite-size pieces.",
-            "Heat a wok with oil until shimmering.",
-            "Stir-fry proteins first, then add vegetables.",
-            "Season with soy sauce or preferred seasoning and serve hot."
-        ));
-        res.setDishes(List.of(dish));
-        return res;
     }
 
     private String safe(String val) {
         return StringUtils.hasText(val) ? val : "not specified";
     }
+
+    private List<GenerateRecipesResponse.Dish> fallbackDishes(GenerateRecipesRequest request) {
+        List<String> ing = request.getIngredients().stream()
+            .map(GenerateRecipesRequest.Ingredient::getName)
+            .filter(StringUtils::hasText)
+            .collect(Collectors.toList());
+        if (ing.isEmpty()) {
+            ing = List.of("Mixed veggies", "Oil", "Soy sauce");
+        }
+        GenerateRecipesResponse.Dish d1 = placeholderDish("Pan-Seared Protein Bowl", "Quick skillet bowl with your available protein and greens.", ing);
+        GenerateRecipesResponse.Dish d2 = placeholderDish("Hearty One-Pot Stew", "Comforting stew using pantry staples and veggies.", ing);
+        GenerateRecipesResponse.Dish d3 = placeholderDish("Roasted Sheet Pan Medley", "Easy sheet-pan bake with veggies and protein.", ing);
+        return List.of(d1, d2, d3);
+    }
+
+    private GenerateRecipesResponse.Dish placeholderDish(String title, String description, List<String> ing) {
+        GenerateRecipesResponse.Dish dish = new GenerateRecipesResponse.Dish();
+        dish.setId(UUID.randomUUID().toString());
+        dish.setTitle(title);
+        dish.setShortDescription(description);
+        dish.setDifficulty("easy");
+        dish.setEstimatedTime(20);
+        dish.setImageUrl("https://placehold.co/600x400?text=ChefMate");
+        dish.setIngredients(ing);
+        dish.setSteps(List.of(
+            "Prep ingredients into bite-size pieces.",
+            "Cook over medium heat until done.",
+            "Season to taste and serve."
+        ));
+        return dish;
+    }
+
+    private record AttemptResult(List<GenerateRecipesResponse.Dish> dishes, String source) {}
 }
