@@ -6,17 +6,6 @@ import { DishCard } from './DishCard';
 import { RecipeModal } from './RecipeModal';
 import { generateRecipes } from '../services/geminiService';
 
-export type CookIdea = {
-  id: string;
-  title: string;
-  shortDescription: string;
-  difficulty: string;
-  estimatedTime: number;
-  imageUrl: string;
-  ingredients: string[];
-  steps: string[];
-};
-
 interface CookTabProps {
   selectedIngredients: string[];
   onPickIngredients: () => void;

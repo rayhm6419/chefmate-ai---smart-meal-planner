@@ -54,18 +54,21 @@ export const RecipeDetailModal: React.FC<Props> = ({ recipe, onClose }) => {
             <div>
               <h4 className="text-sm font-bold text-slate-900 mb-2">Ingredients</h4>
               <ul className="space-y-1 text-sm text-slate-700">
-                {recipe.ingredients.map((ing, idx) => (
-                  <li key={idx} className="flex gap-2">
-                    <span className="font-semibold text-slate-900">{ing.name}</span>
-                    {(ing.quantity || ing.note || ing.unit) && (
-                      <span className="text-slate-600">
-                        {ing.quantity ? `${ing.quantity} ` : ''}
-                        {ing.unit ? `${ing.unit} ` : ''}
-                        {ing.note || ''}
-                      </span>
-                    )}
-                  </li>
-                ))}
+                {recipe.ingredients.map((ing, idx) => {
+                  const normalized = typeof ing === 'string' ? { name: ing } : ing;
+                  return (
+                    <li key={idx} className="flex gap-2">
+                      <span className="font-semibold text-slate-900">{normalized.name}</span>
+                      {(normalized.quantity || normalized.note || normalized.unit) && (
+                        <span className="text-slate-600">
+                          {normalized.quantity ? `${normalized.quantity} ` : ''}
+                          {normalized.unit ? `${normalized.unit} ` : ''}
+                          {normalized.note || ''}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}

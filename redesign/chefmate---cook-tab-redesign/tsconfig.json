@@ -23,16 +23,6 @@
         "./*"
       ]
     },
-    
-    "exclude": [
-      "node_modules",
-      "dist",
-      "build",
-      "_backup_before_redesign",
-      "redesign"
-    ],
-
-    
     "allowImportingTsExtensions": true,
     "noEmit": true
   }

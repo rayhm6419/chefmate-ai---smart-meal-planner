@@ -1,4 +1,4 @@
-import { Recipe, MealTypeOption } from "../types";
+import type { Recipe, MealTypeOption } from "../types";
 import { apiFetchJson } from "./apiClient";
 
 export const fetchFavorites = async (date: string, mealType?: MealTypeOption): Promise<Recipe[]> => {
@@ -70,7 +70,7 @@ export const generateAiRecipe = async (payload: AiRecipePayload): Promise<Recipe
   const difficulty = first.difficulty ? first.difficulty.toUpperCase() as Recipe["difficulty"] : "MEDIUM";
 
   return {
-    id: Date.now(),
+    id: String(Date.now()),
     title: first.title,
     shortDescription: first.description,
     servings: first.servings,
