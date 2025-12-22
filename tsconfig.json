@@ -1,38 +1,28 @@
 {
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "_backup_before_redesign",
+    "_legacy_ui",
+    "redesign"
+  ],
   "compilerOptions": {
     "target": "ES2022",
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
     "module": "ESNext",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "moduleResolution": "bundler",
     "isolatedModules": true,
     "moduleDetection": "force",
     "allowJs": true,
     "jsx": "react-jsx",
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"]
     },
-    
-    "exclude": [
-      "node_modules",
-      "dist",
-      "build",
-      "_backup_before_redesign",
-      "redesign"
-    ],
-
-    
     "allowImportingTsExtensions": true,
     "noEmit": true
   }
