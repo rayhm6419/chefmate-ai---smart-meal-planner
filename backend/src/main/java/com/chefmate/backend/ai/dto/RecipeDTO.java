@@ -15,6 +15,7 @@ public class RecipeDTO {
     private String difficulty;
     private List<String> tags = new ArrayList<>();
     private Integer servings;
+    private String imageQuery;
     private List<IngredientDTO> ingredients = new ArrayList<>();
     private List<String> steps = new ArrayList<>();
     private List<String> tips = new ArrayList<>();
@@ -65,6 +66,14 @@ public class RecipeDTO {
 
     public void setServings(Integer servings) {
         this.servings = servings;
+    }
+
+    public String getImageQuery() {
+        return imageQuery;
+    }
+
+    public void setImageQuery(String imageQuery) {
+        this.imageQuery = imageQuery;
     }
 
     public List<IngredientDTO> getIngredients() {

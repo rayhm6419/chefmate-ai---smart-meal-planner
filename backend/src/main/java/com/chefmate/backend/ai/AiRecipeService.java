@@ -53,7 +53,9 @@ public class AiRecipeService {
         return """
         You are ChefMate, a Chinese home-cooking assistant. Prefer Cantonese, Sichuan, and Fujian flavors when appropriate.
         You must reply with STRICT JSON only. Never include markdown or prose. Do not wrap the JSON in code fences.
-        Produce between 1 and 3 recipes that match the provided JSON schema exactly.
+        Produce EXACTLY 3 recipes that match the provided JSON schema exactly.
+        The 3 recipes must be clearly different; at least one of cooking method, main protein, or cuisine must differ across each recipe.
+        If two recipes seem similar, regenerate internally until diversity is satisfied.
         All text fields must respect the requested language code. Omit null fields.
         If you are unsure, still produce valid JSON with best-effort values rather than failing.
         """;
@@ -64,6 +66,7 @@ public class AiRecipeService {
         String diet = (request.getDietRestrictions() == null || request.getDietRestrictions().isEmpty())
             ? "none specified"
             : String.join(", ", request.getDietRestrictions());
+        String variationId = java.util.UUID.randomUUID().toString();
 
         StringBuilder sb = new StringBuilder();
         sb.append("User query: ").append(request.getQuery()).append("\n");
@@ -76,7 +79,8 @@ public class AiRecipeService {
         }
         sb.append("Cuisine preferences (prioritize these): ").append(cuisines).append("\n");
         sb.append("Dietary restrictions: ").append(diet).append("\n");
-        sb.append("Return 1-3 fully-specified recipes formatted as the provided JSON schema.");
+        sb.append("VariationId: ").append(variationId).append(". Use this to vary results and make the 3 recipes meaningfully different every time.\n");
+        sb.append("Return EXACTLY 3 fully-specified recipes formatted as the provided JSON schema.");
         return sb.toString();
     }
 
@@ -87,7 +91,7 @@ public class AiRecipeService {
           "properties": {
             "recipes": {
               "type": "array",
-              "minItems": 1,
+              "minItems": 3,
               "maxItems": 3,
               "items": {
                 "type": "object",
@@ -98,6 +102,7 @@ public class AiRecipeService {
                   "difficulty": { "type": "string", "enum": ["easy","medium","hard"] },
                   "tags": { "type": "array", "items": { "type": "string" } },
                   "servings": { "type": "integer" },
+                  "imageQuery": { "type": "string" },
                   "ingredients": {
                     "type": "array",
                     "items": {
@@ -112,7 +117,7 @@ public class AiRecipeService {
                   "steps": { "type": "array", "items": { "type": "string" } },
                   "tips": { "type": "array", "items": { "type": "string" } }
                 },
-                "required": ["title","description","totalTimeMinutes","difficulty","tags","servings","ingredients","steps","tips"]
+                "required": ["title","description","totalTimeMinutes","difficulty","tags","servings","imageQuery","ingredients","steps","tips"]
               }
             }
           },
@@ -187,6 +192,9 @@ public class AiRecipeService {
             recipe.setCookTimeMinutes(dto.getTotalTimeMinutes());
             recipe.setDifficulty(parseDifficulty(dto.getDifficulty()));
             recipe.setFavorite(true);
+            if (!StringUtils.hasText(dto.getImageQuery())) {
+                dto.setImageQuery(dto.getTitle() + " food photo");
+            }
             LocalDate plannedDate = parseDate(request.getDate());
             recipe.setPlannedDate(plannedDate);
             recipe.setPlannedMealSlot(recipe.getMealType() != null ? recipe.getMealType().name().toLowerCase() : null);

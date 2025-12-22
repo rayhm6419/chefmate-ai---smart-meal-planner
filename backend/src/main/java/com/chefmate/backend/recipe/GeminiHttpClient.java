@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
@@ -38,8 +39,8 @@ public class GeminiHttpClient implements GeminiClient {
 
     @Override
     public String generateJson(String systemInstruction, String userPrompt, String jsonSchema) {
-        String combinedSystem = systemInstruction + "\nYou must follow this JSON schema exactly:\n" + jsonSchema + "\nReturn ONLY valid JSON.";
-        return callModel(combinedSystem, userPrompt);
+        String systemWithSchema = systemInstruction + "\nYou must follow this JSON schema exactly:\n" + jsonSchema + "\nReturn ONLY valid JSON.";
+        return callModel(systemWithSchema, userPrompt);
     }
 
     @Override
@@ -48,20 +49,30 @@ public class GeminiHttpClient implements GeminiClient {
     }
 
     private String callModel(String systemInstruction, String userPrompt) {
+        String requestId = UUID.randomUUID().toString();
         try {
             if (apiKey == null || apiKey.isBlank()) {
                 throw new ResponseStatusException(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "GEMINI_API_KEY is not configured");
             }
             String url = BASE_URL.formatted(modelId, apiKey);
-            log.info("Calling Gemini model {} via {}", modelId, url);
-            String combinedPrompt = systemInstruction + "\n\nUser request:\n" + userPrompt;
+            log.info("[Gemini] reqId={} model={} url={}", requestId, modelId, url);
             Map<String, Object> body = new HashMap<>();
+            body.put("systemInstruction", Map.of(
+                "parts", List.of(Map.of("text", systemInstruction))
+            ));
             body.put("contents", List.of(Map.of(
                 "role", "user",
-                "parts", List.of(Map.of("text", combinedPrompt))
+                "parts", List.of(Map.of("text", userPrompt))
             )));
+            body.put("generationConfig", Map.of(
+                "temperature", 1.0,
+                "topP", 0.95,
+                "topK", 64,
+                "maxOutputTokens", 1600,
+                "responseMimeType", "application/json"
+            ));
             try {
-                log.info("Gemini request body: {}", objectMapper.writeValueAsString(body));
+                log.info("[Gemini] reqId={} request body: {}", requestId, objectMapper.writeValueAsString(body));
             } catch (Exception ignore) {
                 log.debug("Gemini request body logging failed");
             }
@@ -75,23 +86,27 @@ public class GeminiHttpClient implements GeminiClient {
                 response = restTemplate.postForEntity(url, entity, String.class);
             } catch (HttpStatusCodeException e) {
                 String responseBody = e.getResponseBodyAsString();
-                log.error("Gemini API returned error status {} body {}", e.getStatusCode(), responseBody);
-                throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_GATEWAY, "Gemini API error: " + e.getStatusCode());
+                String truncatedBody = responseBody == null ? "" : responseBody.substring(0, Math.min(responseBody.length(), 2000));
+                log.error("[Gemini] reqId={} API error status={} url={} body={}", requestId, e.getStatusCode(), url, truncatedBody);
+                String shortBody = responseBody == null ? "" : responseBody.substring(0, Math.min(responseBody.length(), 200));
+                throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_GATEWAY,
+                    "Gemini API error (reqId=" + requestId + ", status=" + e.getStatusCode() + "): " + shortBody);
             }
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-                log.error("Gemini API returned non-OK status: {}", response.getStatusCode());
-                throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_GATEWAY, "Gemini API error");
+                log.error("[Gemini] reqId={} non-OK status: {} url={}", requestId, response.getStatusCode(), url);
+                throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_GATEWAY, "Gemini API error (reqId=" + requestId + ")");
             }
             String raw = response.getBody();
             String text = extractText(raw);
-            log.debug("Gemini raw text response (truncated): {}", text.substring(0, Math.min(text.length(), 300)));
+            text = cleanJson(text);
+            log.debug("[Gemini] reqId={} raw text response (truncated): {}", requestId, text.substring(0, Math.min(text.length(), 300)));
             return text;
         } catch (ResponseStatusException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Gemini API call failed", e);
-            throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_GATEWAY, "Failed to call Gemini", e);
+            log.error("[Gemini] reqId={} API call failed", requestId, e);
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_GATEWAY, "Failed to call Gemini (reqId=" + requestId + "): " + e.getMessage(), e);
         }
     }
 
@@ -110,5 +125,19 @@ public class GeminiHttpClient implements GeminiClient {
             throw new IllegalStateException("Gemini returned empty content");
         }
         return textNode.asText();
+    }
+
+    private String cleanJson(String text) {
+        if (text == null) return null;
+        String trimmed = text.trim();
+        if (trimmed.startsWith("```")) {
+            trimmed = trimmed.replaceFirst("```json\\s*", "")
+                .replaceFirst("^```", "");
+            int fence = trimmed.lastIndexOf("```");
+            if (fence >= 0) {
+                trimmed = trimmed.substring(0, fence);
+            }
+        }
+        return trimmed.trim();
     }
 }

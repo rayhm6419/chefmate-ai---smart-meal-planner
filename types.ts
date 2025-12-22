@@ -1,3 +1,23 @@
+export type Category = 'Breakfast' | 'Lunch' | 'Dinner';
+
+export interface Dish {
+  id: string;
+  title: string;
+  description: string;
+  timeMins: number;
+  calories: number;
+  rating: number;
+  thumbnailUrl: string;
+  category: Category;
+  ingredients: string[];
+}
+
+export interface AppState {
+  currentTab: string;
+  selectedDate: string;
+  selectedCategory: Category;
+  selectedIngredients: string[];
+}
 
 export type IngredientCategory = 'Vegetable' | 'Meat' | 'Fruit' | 'Dairy' | 'Grain' | 'Snack' | 'Spice' | 'Other';
 
@@ -13,7 +33,8 @@ export interface Ingredient {
 export interface ShoppingItem {
   id: string;
   name: string;
-  checked: boolean;
+  checked?: boolean;
+  [key: string]: any;
 }
 
 export interface MealPlan {
