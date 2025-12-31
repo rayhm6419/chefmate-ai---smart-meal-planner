@@ -19,7 +19,7 @@ export interface AppState {
   selectedIngredients: string[];
 }
 
-export type IngredientCategory = 'Vegetable' | 'Meat' | 'Fruit' | 'Dairy' | 'Grain' | 'Snack' | 'Spice' | 'Other';
+export type IngredientCategory = 'Vegetable' | 'Meat' | 'Seafood' | 'Fruit' | 'Dairy' | 'Frozen' | 'Other';
 
 export interface Ingredient {
   id: string;

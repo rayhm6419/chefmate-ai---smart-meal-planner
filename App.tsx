@@ -1,13 +1,73 @@
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { BottomNav } from './components/BottomNav';
 import { DatePicker } from './components/DatePicker';
 import { CookTab } from './components/CookTab';
+import { Inventory } from './_legacy_ui/components/Inventory';
+import { Ingredient } from './types';
+import { createInventoryItem, deleteInventoryItem, listInventoryItems, updateInventoryItem } from './services/inventoryService';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('Cook');
   const [selectedDate, setSelectedDate] = useState('Mon');
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>(['Tomato', 'Eggs', 'Kale']);
+  const [inventoryItems, setInventoryItems] = useState<Ingredient[]>([]);
+
+  const loadInventory = useCallback(async () => {
+    try {
+      const items = await listInventoryItems();
+      setInventoryItems(items);
+    } catch (error) {
+      console.error('Failed to load inventory items', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadInventory();
+  }, [loadInventory]);
+
+  const handleAddInventory = useCallback(async (
+    name: string,
+    category: Ingredient['category'],
+    expiryDate?: string,
+    quantity?: number,
+    unit?: string
+  ) => {
+    try {
+      const created = await createInventoryItem(name, category, expiryDate, quantity, unit);
+      setInventoryItems(prev => [...prev, created]);
+    } catch (error) {
+      console.error('Failed to add inventory item', error);
+      alert('Failed to add inventory item.');
+    }
+  }, []);
+
+  const handleUpdateInventory = useCallback(async (
+    id: string,
+    name: string,
+    category: Ingredient['category'],
+    expiryDate?: string,
+    quantity?: number,
+    unit?: string
+  ) => {
+    try {
+      const updated = await updateInventoryItem(id, name, category, expiryDate, quantity, unit);
+      setInventoryItems(prev => prev.map(item => (item.id === id ? updated : item)));
+    } catch (error) {
+      console.error('Failed to update inventory item', error);
+      alert('Failed to update inventory item.');
+    }
+  }, []);
+
+  const handleRemoveInventory = useCallback(async (id: string) => {
+    try {
+      await deleteInventoryItem(id);
+      setInventoryItems(prev => prev.filter(item => item.id !== id));
+    } catch (error) {
+      console.error('Failed to remove inventory item', error);
+      alert('Failed to remove inventory item.');
+    }
+  }, []);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -20,13 +80,12 @@ const App: React.FC = () => {
         );
       case 'Inventory':
         return (
-          <div className="flex flex-col items-center justify-center h-[60vh] text-center p-10">
-            <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mb-6 text-blue-500">
-               <i className="fa-solid fa-list-check text-3xl"></i>
-            </div>
-            <h2 className="text-xl font-bold text-gray-800">Inventory Management</h2>
-            <p className="text-gray-500 mt-2 max-w-xs">Track what you have in stock and avoid waste.</p>
-          </div>
+          <Inventory
+            ingredients={inventoryItems}
+            onAdd={handleAddInventory}
+            onRemove={handleRemoveInventory}
+            onUpdate={handleUpdateInventory}
+          />
         );
       case 'Favorites':
         return (

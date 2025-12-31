@@ -1,23 +1,18 @@
 
-import React, { useState, useMemo, useRef } from 'react';
-import { Ingredient, IngredientCategory } from '../types';
-import { 
-  Plus, X, Wand2, Loader2, 
-  Leaf, Drumstick, Apple, Milk, Croissant, IceCream, Flame, Package,
-  Refrigerator, Trash2, Settings2, Upload,
+import React, { useState, useMemo } from 'react';
+import { Ingredient, IngredientCategory } from '../../types';
+import {
+  Plus, X,
+  Leaf, Drumstick, Apple, Milk, IceCream, Package,
+  Trash2, Settings2, Upload,
   Carrot, Fish, Beef, Cherry, Banana, Grape, Pizza, Coffee, Cookie, Sandwich
 } from 'lucide-react';
-import { generateFridgeBackground } from '../services/geminiService';
 
 interface InventoryProps {
   ingredients: Ingredient[];
   onAdd: (name: string, category: IngredientCategory, expiryDate?: string, quantity?: number, unit?: string) => void;
   onRemove: (id: string) => void;
   onUpdate: (id: string, name: string, category: IngredientCategory, expiryDate?: string, quantity?: number, unit?: string) => void;
-  customBackground: string | null;
-  onUpdateBackground: (bg: string) => void;
-  viewMode: 'fridge' | 'list';
-  onSwitchView: (mode: 'fridge' | 'list') => void;
 }
 
 // --- Configuration Constants ---
@@ -25,23 +20,11 @@ interface InventoryProps {
 const INITIAL_STYLES: Record<IngredientCategory, { bg: string; border: string; text: string; iconName: string; shadow: string; label: string; customImage?: string }> = {
   'Vegetable': { bg: 'bg-emerald-500', border: 'border-emerald-400', text: 'text-white', iconName: 'Leaf', shadow: 'shadow-emerald-900/20', label: 'Veg' },
   'Meat': { bg: 'bg-rose-500', border: 'border-rose-400', text: 'text-white', iconName: 'Drumstick', shadow: 'shadow-rose-900/20', label: 'Meat' },
+  'Seafood': { bg: 'bg-cyan-500', border: 'border-cyan-400', text: 'text-white', iconName: 'Fish', shadow: 'shadow-cyan-900/20', label: 'Seafood' },
   'Fruit': { bg: 'bg-amber-400', border: 'border-amber-300', text: 'text-white', iconName: 'Apple', shadow: 'shadow-amber-900/20', label: 'Fruit' },
   'Dairy': { bg: 'bg-sky-400', border: 'border-sky-300', text: 'text-white', iconName: 'Milk', shadow: 'shadow-sky-900/20', label: 'Dairy' },
-  'Grain': { bg: 'bg-yellow-500', border: 'border-yellow-400', text: 'text-white', iconName: 'Croissant', shadow: 'shadow-yellow-900/20', label: 'Grain' },
-  'Snack': { bg: 'bg-pink-400', border: 'border-pink-300', text: 'text-white', iconName: 'IceCream', shadow: 'shadow-pink-900/20', label: 'Snack' },
-  'Spice': { bg: 'bg-orange-600', border: 'border-orange-500', text: 'text-white', iconName: 'Flame', shadow: 'shadow-orange-900/20', label: 'Spice' },
+  'Frozen': { bg: 'bg-indigo-500', border: 'border-indigo-400', text: 'text-white', iconName: 'IceCream', shadow: 'shadow-indigo-900/20', label: 'Frozen' },
   'Other': { bg: 'bg-slate-500', border: 'border-slate-400', text: 'text-white', iconName: 'Package', shadow: 'shadow-slate-900/20', label: 'Other' },
-};
-
-const INITIAL_POSITIONS: Record<IngredientCategory, { top: number; left: number; rotate: number }> = {
-  'Vegetable': { top: 5, left: 5, rotate: -6 },
-  'Fruit': { top: 5, left: 55, rotate: 3 },
-  'Meat': { top: 25, left: 10, rotate: 2 },
-  'Dairy': { top: 25, left: 60, rotate: -2 },
-  'Spice': { top: 45, left: 30, rotate: 12 },
-  'Grain': { top: 65, left: 5, rotate: -3 },
-  'Snack': { top: 65, left: 55, rotate: 6 },
-  'Other': { top: 80, left: 35, rotate: -6 },
 };
 
 // Available Icons Map
@@ -50,9 +33,9 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Drumstick, Fish, Beef,
   Apple, Cherry, Banana, Grape,
   Milk, Coffee,
-  Croissant, Sandwich, Pizza,
+  Sandwich, Pizza,
   IceCream, Cookie,
-  Flame, Package
+  Package
 };
 
 // Color Palette for Customization
@@ -77,12 +60,10 @@ const COLOR_PALETTE = [
   { bg: 'bg-slate-500', border: 'border-slate-400', shadow: 'shadow-slate-900/20' },
 ];
 
-export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemove, onUpdate, customBackground, onUpdateBackground, viewMode, onSwitchView }) => {
-  const [magnetPositions, setMagnetPositions] = useState(INITIAL_POSITIONS);
+export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemove, onUpdate }) => {
   const [magnetStyles, setMagnetStyles] = useState(INITIAL_STYLES);
 
   const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isCustomizing, setIsCustomizing] = useState(false); 
   
   const [selectedCategory, setSelectedCategory] = useState<IngredientCategory | 'All'>('All');
@@ -95,20 +76,7 @@ export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemo
   const [formQuantity, setFormQuantity] = useState('');
   const [formUnit, setFormUnit] = useState('');
 
-  // Drag States
-  const [dragState, setDragState] = useState<{
-    isDragging: boolean;
-    category: IngredientCategory | null;
-    startX: number;
-    startY: number;
-    initialTop: number;
-    initialLeft: number;
-  }>({ isDragging: false, category: null, startX: 0, startY: 0, initialTop: 0, initialLeft: 0 });
-
-  const containerRef = useRef<HTMLDivElement>(null);
-  const dragThreshold = 5; 
-
-  const categories: IngredientCategory[] = ['Vegetable', 'Meat', 'Fruit', 'Dairy', 'Grain', 'Snack', 'Spice', 'Other'];
+  const categories: IngredientCategory[] = ['Vegetable', 'Meat', 'Seafood', 'Fruit', 'Dairy', 'Frozen', 'Other'];
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
@@ -132,66 +100,6 @@ export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemo
     });
   }, [ingredients, selectedCategory]);
 
-  const handlePointerDown = (e: React.PointerEvent, category: IngredientCategory) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const pos = magnetPositions[category];
-    setDragState({
-      isDragging: false, 
-      category,
-      startX: e.clientX,
-      startY: e.clientY,
-      initialTop: pos.top,
-      initialLeft: pos.left,
-    });
-    (e.target as Element).setPointerCapture(e.pointerId);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!dragState.category || !containerRef.current) return;
-
-    const dx = e.clientX - dragState.startX;
-    const dy = e.clientY - dragState.startY;
-
-    if (!dragState.isDragging && Math.sqrt(dx * dx + dy * dy) > dragThreshold) {
-       setDragState(prev => ({ ...prev, isDragging: true }));
-    }
-
-    if (dragState.isDragging) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const deltaXPercent = (dx / rect.width) * 100;
-      const deltaYPercent = (dy / rect.height) * 100;
-
-      let newLeft = dragState.initialLeft + deltaXPercent;
-      let newTop = dragState.initialTop + deltaYPercent;
-
-      newLeft = Math.max(0, Math.min(85, newLeft));
-      newTop = Math.max(0, Math.min(85, newTop));
-
-      setMagnetPositions(prev => ({
-        ...prev,
-        [dragState.category!]: {
-          ...prev[dragState.category!],
-          top: newTop,
-          left: newLeft
-        }
-      }));
-    }
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (dragState.category) {
-      (e.target as Element).releasePointerCapture(e.pointerId);
-      
-      if (!dragState.isDragging) {
-        setSelectedCategory(dragState.category);
-        setIsCustomizing(false); 
-        onSwitchView('list'); // Switch to list view directly
-      }
-      
-      setDragState({ isDragging: false, category: null, startX: 0, startY: 0, initialTop: 0, initialLeft: 0 });
-    }
-  };
 
   const handleStyleUpdate = (updates: Partial<typeof INITIAL_STYLES['Vegetable']>) => {
     if (selectedCategory === 'All') return;
@@ -252,126 +160,7 @@ export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemo
     setEditingItem(null);
   };
 
-  const handleGenerateDesign = async () => {
-    setIsGenerating(true);
-    try {
-      const bg = await generateFridgeBackground();
-      if (bg) onUpdateBackground(bg);
-    } catch (e) {
-      alert('Failed to generate fridge design');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   const currentStyle = selectedCategory !== 'All' ? magnetStyles[selectedCategory] : null;
-
-  // Render Fridge View
-  if (viewMode === 'fridge') {
-    return (
-      <div className="relative w-full h-full flex flex-col select-none touch-none px-6 pt-2 pb-[180px]">
-        {/* Fridge Container with Padding for Floating Bottom Elements */}
-        
-        {/* --- TOP DOOR (Freezer) --- */}
-        <div 
-           className="relative h-[32%] min-h-[120px] w-full rounded-t-[2.5rem] rounded-b-xl bg-sky-400 shadow-[0_10px_20px_rgba(0,0,0,0.15),inset_0_-4px_6px_rgba(0,0,0,0.1)] overflow-hidden border-x-4 border-t-4 border-sky-500/30 flex flex-col items-center justify-center z-10"
-           style={{ 
-             backgroundImage: customBackground ? `url(${customBackground})` : undefined,
-             backgroundSize: 'cover',
-             backgroundPosition: 'top center'
-           }}
-        >
-           <div className="absolute top-1/4 left-5 w-3 h-20 bg-white/40 rounded-full shadow-sm backdrop-blur-sm border border-white/20"></div>
-
-           <button 
-            onClick={handleGenerateDesign}
-            className="absolute top-4 right-4 p-2 bg-black/10 backdrop-blur rounded-full text-white/70 hover:bg-black/20 transition-colors z-30"
-           >
-             {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-           </button>
-
-           {/* THE FACE */}
-           <div className="flex flex-col items-center justify-center opacity-80 hover:opacity-100 transition-opacity duration-500 transform scale-90">
-              <div className="flex gap-10 mb-3">
-                 <div className="w-3 h-5 bg-slate-800 rounded-full animate-bounce [animation-duration:3s]"></div>
-                 <div className="w-3 h-5 bg-slate-800 rounded-full animate-bounce [animation-duration:3s] [animation-delay:0.1s]"></div>
-              </div>
-              <div className="w-12 h-6 border-b-4 border-slate-800 rounded-full"></div>
-           </div>
-        </div>
-        
-        {/* Gap */}
-        <div className="h-[2%] min-h-[8px]"></div>
-
-        {/* --- BOTTOM DOOR (Main Fridge) --- */}
-        <div 
-          ref={containerRef}
-          className="relative flex-1 w-full rounded-t-xl rounded-b-[2rem] bg-sky-400 shadow-[0_10px_25px_rgba(0,0,0,0.15),inset_0_4px_6px_rgba(0,0,0,0.1)] overflow-hidden border-x-4 border-b-4 border-sky-500/30 z-10"
-          style={{ 
-            backgroundImage: customBackground ? `url(${customBackground})` : undefined,
-            backgroundSize: 'cover',
-            backgroundPosition: 'bottom center'
-          }}
-        >
-           <div className="absolute top-5 left-1/2 -translate-x-1/2 w-32 h-3 bg-white/40 rounded-full shadow-sm backdrop-blur-sm border border-white/20"></div>
-
-           {categories.map(cat => {
-             const count = counts[cat];
-             if (count === 0 && !['Vegetable', 'Meat', 'Fruit'].includes(cat)) return null;
-             
-             const style = magnetStyles[cat];
-             const pos = magnetPositions[cat];
-             const Icon = ICON_MAP[style.iconName] || Package;
- 
-             return (
-               <div
-                 key={cat}
-                 onPointerDown={(e) => handlePointerDown(e, cat)}
-                 onPointerMove={handlePointerMove}
-                 onPointerUp={handlePointerUp}
-                 style={{ top: `${pos.top}%`, left: `${pos.left}%` }}
-                 className={`absolute cursor-grab active:cursor-grabbing transform ${pos.rotate} transition-transform active:scale-95 hover:scale-105 z-20 touch-none`}
-               >
-                 <div 
-                    className={`${style.bg} ${style.shadow} border-2 border-white rounded-xl p-1.5 pr-3 flex items-center gap-2 shadow-lg min-w-[90px] relative overflow-hidden`}
-                 >
-                    {style.customImage && (
-                      <div className="absolute inset-0 z-0">
-                         <img src={style.customImage} alt="magnet" className="w-full h-full object-cover opacity-90" />
-                         <div className="absolute inset-0 bg-black/10"></div>
-                      </div>
-                    )}
-
-                    <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center relative z-10 backdrop-blur-sm">
-                       <Icon className="w-5 h-5 text-white drop-shadow-md" />
-                    </div>
-                    <div className="flex flex-col leading-none relative z-10">
-                      <span className="text-[8px] uppercase font-bold text-white/90 mb-0.5 drop-shadow-sm">{style.label}</span>
-                      <span className="text-lg font-black text-white drop-shadow-sm">{count}</span>
-                    </div>
-                 </div>
-               </div>
-             );
-           })}
-
-           {/* Open Fridge Button */}
-           <button 
-             onClick={() => { setSelectedCategory('All'); onSwitchView('list'); setIsCustomizing(false); }}
-             className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white text-sky-600 hover:bg-sky-50 px-6 py-2.5 rounded-full font-bold text-xs shadow-xl shadow-sky-900/20 flex items-center gap-2 transition-all active:scale-95 border border-sky-100 z-30"
-           >
-             <Refrigerator className="w-4 h-4" />
-             Open Fridge
-           </button>
-        </div>
-
-        {/* Fridge Feet */}
-        <div className="flex justify-between px-8 -mt-1 z-0">
-           <div className="w-8 h-4 bg-slate-300 rounded-b-lg shadow-sm"></div>
-           <div className="w-8 h-4 bg-slate-300 rounded-b-lg shadow-sm"></div>
-        </div>
-      </div>
-    );
-  }
 
   // Render List/Inventory View
   return (
