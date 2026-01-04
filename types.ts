@@ -80,6 +80,8 @@ export interface Recipe {
   ingredients: RecipeIngredient[];
   steps: string[];
   tips: string[];
+  imageUrl?: string;
+  imageKeyword?: string;
 }
 
 export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
@@ -93,3 +95,5 @@ export interface DateInfo {
 }
 
 export type CuisineType = 'Cantonese' | 'Sichuan' | 'Fujian' | 'Hunan' | 'Jiangsu' | 'Zhejiang' | 'Anhui' | 'Shandong' | 'General';
+
+

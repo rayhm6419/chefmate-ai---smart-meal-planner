@@ -10,7 +10,6 @@ import { createInventoryItem, deleteInventoryItem, listInventoryItems, updateInv
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('Cook');
   const [selectedDate, setSelectedDate] = useState('Mon');
-  const [selectedIngredients, setSelectedIngredients] = useState<string[]>(['Tomato', 'Eggs', 'Kale']);
   const [inventoryItems, setInventoryItems] = useState<Ingredient[]>([]);
 
   const loadInventory = useCallback(async () => {
@@ -73,10 +72,7 @@ const App: React.FC = () => {
     switch (activeTab) {
       case 'Cook':
         return (
-          <CookTab 
-            selectedIngredients={selectedIngredients} 
-            onPickIngredients={() => alert('Opening Ingredient Selector... (Existing Logic)')} 
-          />
+          <CookTab />
         );
       case 'Inventory':
         return (
