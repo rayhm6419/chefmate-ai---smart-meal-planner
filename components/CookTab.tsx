@@ -5,23 +5,24 @@ import { CATEGORIES, INITIAL_DISHES } from '../constants';
 import { DishCard } from './DishCard';
 import { RecipeModal } from './RecipeModal';
 import { generateRecipes } from '../services/geminiService';
+import { IngredientSelectorModal, SelectedIngredient } from './IngredientSelectorModal';
 
-interface CookTabProps {
-  selectedIngredients: string[];
-  onPickIngredients: () => void;
-}
-
-export const CookTab: React.FC<CookTabProps> = ({ selectedIngredients, onPickIngredients }) => {
+export const CookTab: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<Category>('Breakfast');
   const [dishes, setDishes] = useState<Dish[]>(INITIAL_DISHES.filter(d => d.category === 'Breakfast'));
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
   const [layoutMode, setLayoutMode] = useState<'list' | 'grid'>('list');
+  const [selectedIngredients, setSelectedIngredients] = useState<SelectedIngredient[]>([]);
+  const [isIngredientSelectorOpen, setIsIngredientSelectorOpen] = useState(false);
 
   const handleShuffle = useCallback(async () => {
     setIsRefreshing(true);
     // Use Gemini for the smart shuffle
-    const newDishes = await generateRecipes(activeCategory, selectedIngredients);
+    const newDishes = await generateRecipes(
+      activeCategory,
+      selectedIngredients.map(item => item.name)
+    );
     if (newDishes.length > 0) {
       setDishes(newDishes);
     } else {
@@ -68,14 +69,14 @@ export const CookTab: React.FC<CookTabProps> = ({ selectedIngredients, onPickIng
         {selectedIngredients.length > 0 ? (
           <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-1">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">Using:</span>
-            {selectedIngredients.map((ing, idx) => (
-              <span key={idx} className="bg-white px-3 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100 whitespace-nowrap flex items-center gap-1">
+            {selectedIngredients.map((ing) => (
+              <span key={ing.id} className="bg-white px-3 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100 whitespace-nowrap flex items-center gap-1">
                 <div className="w-1 h-1 rounded-full bg-green-500"></div>
-                {ing}
+                {ing.name}
               </span>
             ))}
             <button 
-              onClick={onPickIngredients}
+              onClick={() => setIsIngredientSelectorOpen(true)}
               className="ml-auto text-xs font-bold text-orange-600 hover:underline flex items-center"
             >
               Edit <i className="fa-solid fa-chevron-right ml-1 text-[10px]"></i>
@@ -93,7 +94,7 @@ export const CookTab: React.FC<CookTabProps> = ({ selectedIngredients, onPickIng
                </div>
             </div>
             <button 
-              onClick={onPickIngredients}
+              onClick={() => setIsIngredientSelectorOpen(true)}
               className="bg-white px-4 py-2 rounded-xl text-xs font-bold text-orange-600 shadow-sm hover:shadow-md transition-shadow"
             >
               Pick ingredients
@@ -155,6 +156,15 @@ export const CookTab: React.FC<CookTabProps> = ({ selectedIngredients, onPickIng
 
       {/* Detail Modal */}
       <RecipeModal dish={selectedDish} onClose={() => setSelectedDish(null)} />
+      <IngredientSelectorModal
+        open={isIngredientSelectorOpen}
+        onClose={() => setIsIngredientSelectorOpen(false)}
+        onConfirm={(items) => {
+          setSelectedIngredients(items);
+          setIsIngredientSelectorOpen(false);
+        }}
+        initialSelected={selectedIngredients}
+      />
     </div>
   );
 };
