@@ -1,6 +1,8 @@
 
 import React from 'react';
 import { Dish } from '../types';
+import { getRecipeImageUrl } from '../utils/recipeImageMap';
+import { RecipeThumbnail } from './RecipeThumbnail';
 
 interface DishCardProps {
   dish: Dish;
@@ -10,6 +12,7 @@ interface DishCardProps {
 
 export const DishCard: React.FC<DishCardProps> = ({ dish, onClick, layout }) => {
   const isGrid = layout === 'grid';
+  const imageUrl = getRecipeImageUrl(dish);
 
   return (
     <div 
@@ -17,10 +20,10 @@ export const DishCard: React.FC<DishCardProps> = ({ dish, onClick, layout }) => 
       className={`group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer border border-gray-100 flex ${isGrid ? 'flex-col' : 'flex-row h-32 md:h-40'}`}
     >
       <div className={`relative ${isGrid ? 'w-full aspect-[4/3]' : 'w-1/3 md:w-1/4'}`}>
-        <img 
-          src={dish.thumbnailUrl} 
-          alt={dish.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+        <RecipeThumbnail
+          title={dish.title}
+          imageUrl={imageUrl}
+          className="group-hover:scale-105 transition-transform duration-500"
         />
         {/* Play overlay for video-first feel */}
         <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">

@@ -1,5 +1,27 @@
 export type Category = 'Breakfast' | 'Lunch' | 'Dinner';
 
+export type ImageKey =
+  | 'default'
+  | 'Meatloaf'
+  | 'PotRoast'
+  | 'greenbean'
+  | 'omelette'
+  | 'Cod'
+  | 'ChickenPotPie'
+  | 'ChickenNoodlesou'
+  | 'CheeseBurger'
+  | 'FishTacos'
+  | 'EggSandwich'
+  | 'BuffaloWings'
+  | 'GroundBeef'
+  | 'Salmon'
+  | 'Sprouts'
+  | 'lamb'
+  | 'chicken'
+  | 'Eggs'
+  | 'Sandwiches'
+  | 'Pie';
+
 export interface Dish {
   id: string;
   title: string;
@@ -7,9 +29,10 @@ export interface Dish {
   timeMins: number;
   calories: number;
   rating: number;
-  thumbnailUrl: string;
+  thumbnailUrl?: string;
   category: Category;
   ingredients: string[];
+  imageKey?: ImageKey;
 }
 
 export interface AppState {
@@ -82,6 +105,7 @@ export interface Recipe {
   tips: string[];
   imageUrl?: string;
   imageKeyword?: string;
+  imageKey?: ImageKey;
 }
 
 export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
@@ -95,5 +119,4 @@ export interface DateInfo {
 }
 
 export type CuisineType = 'Cantonese' | 'Sichuan' | 'Fujian' | 'Hunan' | 'Jiangsu' | 'Zhejiang' | 'Anhui' | 'Shandong' | 'General';
-
 
