@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Chat, Type } from '@google/genai';
-import { Dish, Category, Ingredient, MealPlan, CuisineType } from '../types';
+import { Dish, Category, Ingredient, MealPlan, CuisineType, ImageKey } from '../types';
+import { IMAGE_KEYS, inferImageKeyFromTitle, isValidImageKey } from '../utils/recipeImageMap';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -97,8 +98,12 @@ export const generateFridgeBackground = async (): Promise<string | null> => {
 };
 
 export async function generateRecipes(category: Category, ingredients: string[]): Promise<Dish[]> {
-  const prompt = `Generate 3 recipe ideas for ${category} ${ingredients.length > 0 ? `using some of these ingredients: ${ingredients.join(', ')}` : 'using common fridge staples'}. 
-  Focus on quick and healthy meals. Provide details in JSON format.`;
+  const prompt = `Generate 3 recipe ideas for ${category} ${ingredients.length > 0 ? `using some of these ingredients: ${ingredients.join(', ')}` : 'using common fridge staples'}.
+Focus on quick and healthy meals. Provide details in JSON format only.
+
+Each recipe object MUST include an "imageKey" field.
+Choose imageKey from this allowed list only: ${IMAGE_KEYS.join(", ")}.
+Pick the closest match to the dish title. If unsure, use "default".`;
 
   try {
     const response = await ai.models.generateContent({
@@ -117,11 +122,11 @@ export async function generateRecipes(category: Category, ingredients: string[])
               timeMins: { type: Type.NUMBER },
               calories: { type: Type.NUMBER },
               rating: { type: Type.NUMBER },
-              thumbnailUrl: { type: Type.STRING },
               category: { type: Type.STRING },
-              ingredients: { type: Type.ARRAY, items: { type: Type.STRING } }
+              ingredients: { type: Type.ARRAY, items: { type: Type.STRING } },
+              imageKey: { type: Type.STRING, enum: IMAGE_KEYS as ImageKey[] }
             },
-            required: ["id", "title", "description", "timeMins", "calories", "rating", "category"]
+            required: ["id", "title", "description", "timeMins", "calories", "rating", "category", "imageKey"]
           }
         }
       }
@@ -131,8 +136,11 @@ export async function generateRecipes(category: Category, ingredients: string[])
     return results.map((d: any) => ({
       ...d,
       id: d.id || Math.random().toString(36).substr(2, 9),
-      thumbnailUrl: d.thumbnailUrl || `https://picsum.photos/seed/${encodeURIComponent(d.title)}/400/300`,
-      category
+      thumbnailUrl: d.thumbnailUrl || "",
+      category,
+      imageKey: isValidImageKey(d.imageKey)
+        ? d.imageKey
+        : inferImageKeyFromTitle(d.title) ?? "default"
     }));
   } catch (error) {
     console.error("Error generating recipes:", error);

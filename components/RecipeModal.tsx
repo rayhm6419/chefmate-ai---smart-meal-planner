@@ -1,6 +1,8 @@
 
 import React from 'react';
 import { Dish } from '../types';
+import { getRecipeImageUrl } from '../utils/recipeImageMap';
+import { RecipeThumbnail } from './RecipeThumbnail';
 
 interface RecipeModalProps {
   dish: Dish | null;
@@ -9,6 +11,7 @@ interface RecipeModalProps {
 
 export const RecipeModal: React.FC<RecipeModalProps> = ({ dish, onClose }) => {
   if (!dish) return null;
+  const imageUrl = getRecipeImageUrl(dish);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm transition-all animate-fade-in">
@@ -16,7 +19,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ dish, onClose }) => {
         className="bg-white w-full max-w-lg rounded-t-[40px] sm:rounded-[40px] overflow-hidden shadow-2xl animate-slide-up"
       >
         <div className="relative h-64">
-          <img src={dish.thumbnailUrl} alt={dish.title} className="w-full h-full object-cover" />
+          <RecipeThumbnail title={dish.title} imageUrl={imageUrl} className="h-full w-full rounded-none" />
           <button 
             onClick={onClose}
             className="absolute top-6 right-6 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-colors"

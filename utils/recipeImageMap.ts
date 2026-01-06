@@ -1,60 +1,111 @@
-// src/recipeImageMap.ts
+import type { ImageKey } from "../types";
 
-// IMPORTANT: using Vite base URL so it works in web + Capacitor builds
-const BASE = import.meta.env.BASE_URL || "/";
+const buildImageUrl = (filename: string) =>
+  new URL(`./recipeImages/${filename}`, import.meta.url).toString();
 
-export const DEFAULT_RECIPE_IMAGE = `${BASE}recipe-images/default.jpg`;
+export const IMAGE_KEYS: ImageKey[] = [
+  "default",
+  "Meatloaf",
+  "PotRoast",
+  "greenbean",
+  "omelette",
+  "Cod",
+  "ChickenPotPie",
+  "ChickenNoodlesou",
+  "CheeseBurger",
+  "FishTacos",
+  "EggSandwich",
+  "BuffaloWings",
+  "GroundBeef",
+  "Salmon",
+  "Sprouts",
+  "lamb",
+  "chicken",
+  "Eggs",
+  "Sandwiches",
+  "Pie",
+];
 
-/**
- * keyword -> image url
- * 你可以随时扩充，不需要改其他逻辑
- */
-export const RECIPE_IMAGE_MAP: Record<string, string> = {
-  chicken: `${BASE}recipe-images/chicken.jpg`,
-  egg: `${BASE}recipe-images/egg.jpg`,
-  beef: `${BASE}recipe-images/beef.jpg`,
-  pork: `${BASE}recipe-images/beef.jpg`,
-  fish: `${BASE}recipe-images/fish.jpg`,
-  seafood: `${BASE}recipe-images/fish.jpg`,
-  salad: `${BASE}recipe-images/salad.jpg`,
-  soup: `${BASE}recipe-images/soup.jpg`,
-  noodles: `${BASE}recipe-images/noodles.jpg`,
-  pasta: `${BASE}recipe-images/noodles.jpg`,
-  rice: `${BASE}recipe-images/rice.jpg`,
-  dessert: `${BASE}recipe-images/dessert.jpg`,
-  yogurt: `${BASE}recipe-images/dessert.jpg`,
-  veggie: `${BASE}recipe-images/veggie.jpg`,
-  vegetable: `${BASE}recipe-images/veggie.jpg`,
+const IMAGE_KEY_SET = new Set<ImageKey>(IMAGE_KEYS);
+
+export const isValidImageKey = (value: unknown): value is ImageKey =>
+  typeof value === "string" && IMAGE_KEY_SET.has(value as ImageKey);
+
+export const DEFAULT_RECIPE_IMAGE = buildImageUrl("default.jpg");
+
+export const RECIPE_IMAGE_MAP: Record<ImageKey, string> = {
+  default: DEFAULT_RECIPE_IMAGE,
+  Meatloaf: buildImageUrl("Meatloaf.jpg"),
+  PotRoast: buildImageUrl("PotRoast.jpg"),
+  greenbean: buildImageUrl("greenbean.jpg"),
+  omelette: buildImageUrl("omelette.jpg"),
+  Cod: buildImageUrl("Cod.jpg"),
+  ChickenPotPie: buildImageUrl("ChickenPot-Pie.jpg"),
+  ChickenNoodlesou: buildImageUrl("ChickenNoodlesou.jpg"),
+  CheeseBurger: buildImageUrl("CheeseBurger.jpg"),
+  FishTacos: buildImageUrl("FishTacos.jpg"),
+  EggSandwich: buildImageUrl("EggSandwich.jpg"),
+  BuffaloWings: buildImageUrl("BuffaloWings.jpg"),
+  GroundBeef: buildImageUrl("GroundBeef.jpg"),
+  Salmon: buildImageUrl("Salmon.jpg"),
+  Sprouts: buildImageUrl("Sprouts.jpg"),
+  lamb: buildImageUrl("lamb.jpg"),
+  chicken: buildImageUrl("chicken.jpg"),
+  Eggs: buildImageUrl("Eggs.jpg"),
+  Sandwiches: buildImageUrl("Sandwhiches.jpg"),
+  Pie: buildImageUrl("Pie.jpg.jpg"),
 };
 
-/**
- * very small heuristic: find a keyword from title/desc/ingredients
- */
-export function inferImageKeyword(input: {
+const TITLE_FALLBACKS: Array<{ keyword: string; key: ImageKey }> = [
+  { keyword: "chicken pot pie", key: "ChickenPotPie" },
+  { keyword: "pot pie", key: "ChickenPotPie" },
+  { keyword: "pot roast", key: "PotRoast" },
+  { keyword: "potroast", key: "PotRoast" },
+  { keyword: "roast", key: "PotRoast" },
+  { keyword: "buffalo wings", key: "BuffaloWings" },
+  { keyword: "wings", key: "BuffaloWings" },
+  { keyword: "egg sandwich", key: "EggSandwich" },
+  { keyword: "fish taco", key: "FishTacos" },
+  { keyword: "tacos", key: "FishTacos" },
+  { keyword: "chicken noodle", key: "ChickenNoodlesou" },
+  { keyword: "noodle soup", key: "ChickenNoodlesou" },
+  { keyword: "green bean", key: "greenbean" },
+  { keyword: "greenbean", key: "greenbean" },
+  { keyword: "omelette", key: "omelette" },
+  { keyword: "omelet", key: "omelette" },
+  { keyword: "cheeseburger", key: "CheeseBurger" },
+  { keyword: "burger", key: "CheeseBurger" },
+  { keyword: "ground beef", key: "GroundBeef" },
+  { keyword: "beef chili", key: "GroundBeef" },
+  { keyword: "chili", key: "GroundBeef" },
+  { keyword: "brussels sprouts", key: "Sprouts" },
+  { keyword: "sprouts", key: "Sprouts" },
+  { keyword: "meatloaf", key: "Meatloaf" },
+  { keyword: "cod", key: "Cod" },
+  { keyword: "salmon", key: "Salmon" },
+  { keyword: "lamb", key: "lamb" },
+  { keyword: "chicken", key: "chicken" },
+  { keyword: "sandwiches", key: "Sandwiches" },
+  { keyword: "sandwhiches", key: "Sandwiches" },
+  { keyword: "sandwhich", key: "Sandwiches" },
+  { keyword: "sandwich", key: "Sandwiches" },
+  { keyword: "eggs", key: "Eggs" },
+  { keyword: "egg", key: "Eggs" },
+  { keyword: "pie", key: "Pie" },
+];
+
+export const inferImageKeyFromTitle = (title?: string): ImageKey | undefined => {
+  if (!title) return undefined;
+  const lowerTitle = title.toLowerCase();
+  return TITLE_FALLBACKS.find((entry) => lowerTitle.includes(entry.keyword))?.key;
+};
+
+export const getRecipeImageUrl = (recipe: {
   title?: string;
-  description?: string;
-  ingredients?: string[];
-}): string | undefined {
-  const text = `${input.title ?? ""} ${input.description ?? ""} ${(input.ingredients ?? []).join(" ")}`.toLowerCase();
-
-  const keywords = Object.keys(RECIPE_IMAGE_MAP);
-  return keywords.find((k) => text.includes(k));
-}
-
-/**
- * choose which image to render for a recipe
- */
-export function getRecipeImage(recipe: {
-  imageUrl?: string;
-  imageKeyword?: string;
-  title?: string;
-  description?: string;
-  ingredients?: string[];
-}): string {
-  if (recipe.imageUrl) return recipe.imageUrl;
-
-  const key = (recipe.imageKeyword ?? inferImageKeyword(recipe))?.toLowerCase();
-  if (key && RECIPE_IMAGE_MAP[key]) return RECIPE_IMAGE_MAP[key];
-
-  return DEFAULT_RECIPE_IMAGE;
-}
+  imageKey?: ImageKey;
+}): string => {
+  const imageKey = isValidImageKey(recipe.imageKey)
+    ? recipe.imageKey
+    : inferImageKeyFromTitle(recipe.title) ?? "default";
+  return RECIPE_IMAGE_MAP[imageKey] || DEFAULT_RECIPE_IMAGE;
+};

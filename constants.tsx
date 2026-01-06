@@ -9,7 +9,7 @@ export const INITIAL_DISHES: Dish[] = [
     timeMins: 12,
     calories: 320,
     rating: 4.8,
-    thumbnailUrl: 'https://picsum.photos/seed/avocado/400/300',
+    thumbnailUrl: '',
     category: 'Breakfast',
     ingredients: ['Avocado', 'Egg', 'Sourdough']
   },
@@ -20,7 +20,7 @@ export const INITIAL_DISHES: Dish[] = [
     timeMins: 5,
     calories: 210,
     rating: 4.5,
-    thumbnailUrl: 'https://picsum.photos/seed/yogurt/400/300',
+    thumbnailUrl: '',
     category: 'Breakfast',
     ingredients: ['Yogurt', 'Berries', 'Granola']
   },
@@ -31,7 +31,7 @@ export const INITIAL_DISHES: Dish[] = [
     timeMins: 20,
     calories: 450,
     rating: 4.9,
-    thumbnailUrl: 'https://picsum.photos/seed/quinoa/400/300',
+    thumbnailUrl: '',
     category: 'Lunch',
     ingredients: ['Quinoa', 'Kale', 'Chickpeas']
   },
@@ -42,7 +42,7 @@ export const INITIAL_DISHES: Dish[] = [
     timeMins: 15,
     calories: 380,
     rating: 4.7,
-    thumbnailUrl: 'https://picsum.photos/seed/salmon/400/300',
+    thumbnailUrl: '',
     category: 'Dinner',
     ingredients: ['Salmon', 'Asparagus', 'Lemon']
   },
@@ -53,7 +53,7 @@ export const INITIAL_DISHES: Dish[] = [
     timeMins: 35,
     calories: 520,
     rating: 4.6,
-    thumbnailUrl: 'https://picsum.photos/seed/mushroom/400/300',
+    thumbnailUrl: '',
     category: 'Dinner',
     ingredients: ['Mushroom', 'Arborio Rice', 'Parmesan']
   },
@@ -64,7 +64,7 @@ export const INITIAL_DISHES: Dish[] = [
     timeMins: 20,
     calories: 480,
     rating: 4.4,
-    thumbnailUrl: 'https://picsum.photos/seed/pasta/400/300',
+    thumbnailUrl: '',
     category: 'Lunch',
     ingredients: ['Chicken', 'Pasta', 'Pesto']
   }
