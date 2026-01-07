@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Refrigerator } from 'lucide-react';
 import { Category, CookIdea, Dish } from '../types';
 import { CATEGORIES, INITIAL_DISHES } from '../constants';
 import { DishCard } from './DishCard';
@@ -151,7 +152,7 @@ export const CookTab: React.FC<CookTabProps> = ({ selectedDate }) => {
           <div className="bg-orange-50 p-4 rounded-3xl border border-orange-100 flex items-center justify-between">
             <div className="flex items-center gap-3">
                <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-orange-500 shadow-sm">
-                  <i className="fa-solid fa-kitchen-set"></i>
+                  <Refrigerator className="w-5 h-5" aria-hidden="true" />
                </div>
                <div>
                   <h4 className="text-sm font-bold text-gray-800 leading-tight">Use what's in your fridge</h4>

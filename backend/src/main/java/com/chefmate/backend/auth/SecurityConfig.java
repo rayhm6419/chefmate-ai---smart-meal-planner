@@ -39,7 +39,6 @@ public class SecurityConfig {
                         .requestMatchers("/auth/login", "/auth/register").permitAll()
                         .requestMatchers("/api/health", "/health/**").permitAll()
                         .requestMatchers("/api/inventory/**").permitAll()
-                        .requestMatchers("/api/recipes/generate").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
