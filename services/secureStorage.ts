@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 
 const TOKEN_KEY = 'chefmate.auth.token';
+const DISPLAY_NAME_KEY = 'chefmate.profile.displayName';
 const isNative = Capacitor.isNativePlatform();
 
 // Web fallback (you can switch to localStorage if you prefer persistence)
@@ -41,5 +42,29 @@ export const clearToken = async () => {
     await Preferences.remove({ key: TOKEN_KEY });
   } else {
     webStore.remove(TOKEN_KEY);
+  }
+};
+
+export const saveDisplayName = async (name: string) => {
+  if (isNative) {
+    await Preferences.set({ key: DISPLAY_NAME_KEY, value: name });
+  } else {
+    webStore.set(DISPLAY_NAME_KEY, name);
+  }
+};
+
+export const getDisplayName = async (): Promise<string | null> => {
+  if (isNative) {
+    const { value } = await Preferences.get({ key: DISPLAY_NAME_KEY });
+    return value ?? null;
+  }
+  return webStore.get(DISPLAY_NAME_KEY);
+};
+
+export const clearDisplayName = async () => {
+  if (isNative) {
+    await Preferences.remove({ key: DISPLAY_NAME_KEY });
+  } else {
+    webStore.remove(DISPLAY_NAME_KEY);
   }
 };

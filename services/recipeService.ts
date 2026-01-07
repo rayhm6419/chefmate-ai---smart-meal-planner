@@ -1,5 +1,8 @@
-import type { Recipe, MealTypeOption } from "../types";
+import type { CookIdea, ImageKey, MealTypeOption, Recipe } from "../types";
 import { apiFetchJson } from "./apiClient";
+import { getSavedToken } from "./secureStorage";
+import { DEFAULT_RECIPE_IMAGE, RECIPE_IMAGE_MAP, inferImageKeyFromTitle, isValidImageKey } from "../utils/recipeImageMap";
+import { DEFAULT_RECIPE_VIDEO, getRecipeVideoUrl } from "../utils/recipeVideoMap";
 
 export const fetchFavorites = async (date: string, mealType?: MealTypeOption): Promise<Recipe[]> => {
   const params = new URLSearchParams({ date });
@@ -40,6 +43,72 @@ export const generateRecipeFromInventory = async (payload: InventoryCookPayload)
   });
 };
 
+const stableHash = (value: string): string => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+};
+
+export const computeCookIdeaId = (idea: {
+  title?: string;
+  ingredients?: string[];
+  steps?: string[];
+  difficulty?: string;
+  estimatedTime?: number;
+}): string => {
+  const payload = [
+    idea.title ?? "",
+    (idea.ingredients ?? []).join(","),
+    (idea.steps ?? []).join("|"),
+    idea.difficulty ?? "",
+    idea.estimatedTime ?? "",
+  ].join("::");
+  return `cook_${stableHash(payload)}`;
+};
+
+export const normalizeCookIdea = (
+  rawIdea: Partial<CookIdea>,
+  context?: { category?: CookIdea["category"] }
+): CookIdea => {
+  const title = rawIdea.title?.trim() || "Untitled Recipe";
+  const ingredients = (rawIdea.ingredients ?? []).filter(Boolean);
+  const steps = (rawIdea.steps ?? []).filter(Boolean);
+  const difficulty = rawIdea.difficulty?.trim() || "Medium";
+  const estimatedTime = Number(rawIdea.estimatedTime ?? 20) || 20;
+  const shortDescription = rawIdea.shortDescription?.trim() || "A tasty recipe idea.";
+  const imageKey: ImageKey = isValidImageKey(rawIdea.imageKey)
+    ? rawIdea.imageKey
+    : inferImageKeyFromTitle(title) ?? "default";
+  const imageUrl = RECIPE_IMAGE_MAP[imageKey] ?? DEFAULT_RECIPE_IMAGE;
+  const videoUrl = rawIdea.videoUrl?.trim() || getRecipeVideoUrl({
+    id: rawIdea.id || "",
+    title,
+    shortDescription,
+    difficulty,
+    estimatedTime,
+    ingredients,
+    steps,
+  } as Recipe);
+
+  return {
+    id: rawIdea.id || computeCookIdeaId({ title, ingredients, steps, difficulty, estimatedTime }),
+    title,
+    shortDescription,
+    difficulty,
+    estimatedTime,
+    imageUrl,
+    imageKey,
+    videoUrl: videoUrl || DEFAULT_RECIPE_VIDEO,
+    ingredients,
+    steps: steps.length > 0 ? steps : ["Follow the recipe instructions."],
+    calories: rawIdea.calories ?? 420,
+    rating: rawIdea.rating ?? 4.6,
+    category: rawIdea.category ?? context?.category,
+  };
+};
 interface AiRecipe {
   title: string;
   description: string;
@@ -100,26 +169,23 @@ export interface CookIdeaPayload {
   seed?: string;
 }
 
-export interface CookIdea {
-  id: string;
-  title: string;
-  shortDescription: string;
-  difficulty: string;
-  estimatedTime: number;
-  imageUrl: string;
-  ingredients: string[];
-  steps: string[];
-}
-
 interface CookIdeasResponse {
   dishes: CookIdea[];
 }
 
-export const generateCookIdeas = async (payload: CookIdeaPayload): Promise<CookIdea[]> => {
+export const generateCookIdeas = async (
+  payload: CookIdeaPayload,
+  context?: { category?: CookIdea["category"] }
+): Promise<CookIdea[]> => {
+  const token = await getSavedToken();
+  if (!token) {
+    throw new Error("AUTH_REQUIRED");
+  }
   const data = await apiFetchJson<CookIdeasResponse>(`/api/recipes/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  return data.dishes || [];
+  const dishes = data.dishes || [];
+  return dishes.map((idea) => normalizeCookIdea(idea, context));
 };

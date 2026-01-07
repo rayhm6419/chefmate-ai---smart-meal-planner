@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { ChefHat, Heart, ListChecks } from 'lucide-react';
 
 interface BottomNavProps {
   activeTab: string;
@@ -8,9 +9,9 @@ interface BottomNavProps {
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
   const tabs = [
-    { id: 'Inventory', icon: 'fa-list-check' },
-    { id: 'Cook', icon: 'fa-utensils', isPrimary: true },
-    { id: 'Favorites', icon: 'fa-heart' },
+    { id: 'Inventory', icon: ListChecks },
+    { id: 'Cook', icon: ChefHat, isPrimary: true },
+    { id: 'Favorites', icon: Heart },
   ];
 
   return (
@@ -19,6 +20,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
         const isActive = activeTab === tab.id;
         
         if (tab.isPrimary) {
+          const Icon = tab.icon;
           return (
             <button
               key={tab.id}
@@ -31,7 +33,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
                   ? 'bg-orange-500 text-white shadow-xl shadow-orange-200 -translate-y-8 scale-110' 
                   : 'bg-white text-gray-400 border-4 border-gray-50 shadow-lg -translate-y-6 hover:-translate-y-7'}
               `}>
-                <i className={`fa-solid ${tab.icon} text-2xl`}></i>
+                <Icon className="w-7 h-7" />
               </div>
               <span className={`
                 absolute -bottom-1 text-[10px] font-black uppercase tracking-widest transition-colors
@@ -52,7 +54,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
             }`}
           >
             <div className={`w-12 h-12 flex items-center justify-center rounded-2xl transition-all ${isActive ? 'bg-orange-50' : ''}`}>
-              <i className={`fa-solid ${tab.icon} text-lg`}></i>
+              {(() => {
+                const Icon = tab.icon;
+                return <Icon className="w-5 h-5" />;
+              })()}
             </div>
             <span className="text-[9px] font-bold uppercase tracking-wider">{tab.id}</span>
           </button>
