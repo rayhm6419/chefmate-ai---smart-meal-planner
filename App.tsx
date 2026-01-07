@@ -4,6 +4,7 @@ import { BottomNav } from './components/BottomNav';
 import { DatePicker } from './components/DatePicker';
 import { CookTab } from './components/CookTab';
 import { Inventory } from './_legacy_ui/components/Inventory';
+import { FavoritesTab } from './components/FavoritesTab';
 import { Ingredient } from './types';
 import { createInventoryItem, deleteInventoryItem, listInventoryItems, updateInventoryItem } from './services/inventoryService';
 
@@ -72,7 +73,7 @@ const App: React.FC = () => {
     switch (activeTab) {
       case 'Cook':
         return (
-          <CookTab />
+          <CookTab selectedDate={selectedDate} />
         );
       case 'Inventory':
         return (
@@ -85,13 +86,7 @@ const App: React.FC = () => {
         );
       case 'Favorites':
         return (
-          <div className="flex flex-col items-center justify-center h-[60vh] text-center p-10">
-            <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mb-6 text-red-500">
-               <i className="fa-solid fa-heart text-3xl"></i>
-            </div>
-            <h2 className="text-xl font-bold text-gray-800">Favorite Recipes</h2>
-            <p className="text-gray-500 mt-2 max-w-xs">Your most loved dishes saved for later.</p>
-          </div>
+          <FavoritesTab isActive={activeTab === 'Favorites'} />
         );
       default:
         return null;

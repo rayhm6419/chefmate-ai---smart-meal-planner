@@ -22,7 +22,8 @@ export const RecipeThumbnail: React.FC<RecipeThumbnailProps> = ({
       <div
         className={`flex h-full w-full flex-col items-center justify-center rounded-2xl bg-gray-100 text-gray-500 ${className ?? ""}`}
       >
-        <div className="max-w-[90%] text-center text-sm font-semibold line-clamp-2">
+        <div className="text-[11px] uppercase tracking-widest text-gray-400">No image</div>
+        <div className="mt-2 max-w-[90%] text-center text-sm font-semibold line-clamp-2">
           {title?.trim() ? title : "Recipe"}
         </div>
       </div>

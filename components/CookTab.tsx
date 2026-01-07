@@ -1,46 +1,111 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Dish, Category } from '../types';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Category, CookIdea, Dish } from '../types';
 import { CATEGORIES, INITIAL_DISHES } from '../constants';
 import { DishCard } from './DishCard';
 import { RecipeModal } from './RecipeModal';
-import { generateRecipes } from '../services/geminiService';
+import { generateCookIdeas, normalizeCookIdea } from '../services/recipeService';
 import { IngredientSelectorModal, SelectedIngredient } from './IngredientSelectorModal';
+import { buildCookIdeasCacheKey, getCookIdeasCache, setCookIdeasCache } from '../services/cookIdeasCache';
+import { getFavorites, toggleFavorite } from '../services/favoritesStore';
 
-export const CookTab: React.FC = () => {
+interface CookTabProps {
+  selectedDate: string;
+}
+
+export const CookTab: React.FC<CookTabProps> = ({ selectedDate }) => {
   const [activeCategory, setActiveCategory] = useState<Category>('Breakfast');
-  const [dishes, setDishes] = useState<Dish[]>(INITIAL_DISHES.filter(d => d.category === 'Breakfast'));
+  const [dishes, setDishes] = useState<CookIdea[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
+  const [selectedDish, setSelectedDish] = useState<CookIdea | null>(null);
   const [layoutMode, setLayoutMode] = useState<'list' | 'grid'>('list');
   const [selectedIngredients, setSelectedIngredients] = useState<SelectedIngredient[]>([]);
   const [isIngredientSelectorOpen, setIsIngredientSelectorOpen] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+
+  const ingredientNames = useMemo(
+    () => selectedIngredients.map((item) => item.name),
+    [selectedIngredients]
+  );
+
+  const cacheKey = useMemo(
+    () => buildCookIdeasCacheKey(selectedDate, activeCategory, ingredientNames),
+    [selectedDate, activeCategory, ingredientNames]
+  );
+
+  const seedIdeas = useCallback((category: Category) => {
+    const seeded = INITIAL_DISHES.filter((d) => d.category === category).map((dish: Dish) =>
+      normalizeCookIdea(
+        {
+          id: dish.id,
+          title: dish.title,
+          shortDescription: dish.description,
+          estimatedTime: dish.timeMins,
+          difficulty: "Medium",
+          ingredients: dish.ingredients,
+          steps: dish.steps ?? [],
+          calories: dish.calories,
+          rating: dish.rating,
+          category: dish.category,
+        },
+        { category }
+      )
+    );
+    setDishes(seeded.slice(0, 3));
+  }, []);
 
   const handleShuffle = useCallback(async () => {
     setIsRefreshing(true);
-    // Use Gemini for the smart shuffle
-    const newDishes = await generateRecipes(
-      activeCategory,
-      selectedIngredients.map(item => item.name)
-    );
-    if (newDishes.length > 0) {
-      setDishes(newDishes);
-    } else {
-      // Fallback: shuffle local list
-      const shuffled = [...INITIAL_DISHES]
-        .filter(d => d.category === activeCategory)
-        .sort(() => 0.5 - Math.random());
-      setDishes(shuffled.slice(0, 3));
+    try {
+      const newDishes = await generateCookIdeas(
+        {
+        ingredients: selectedIngredients.map((item) => ({ id: item.id, name: item.name })),
+        seed: `${selectedDate}-${activeCategory}`,
+        },
+        { category: activeCategory }
+      );
+      if (newDishes.length > 0) {
+        setDishes(newDishes);
+        await setCookIdeasCache(cacheKey, newDishes);
+      } else {
+        seedIdeas(activeCategory);
+      }
+    } catch (error) {
+      console.error("Failed to generate cook ideas", error);
+      seedIdeas(activeCategory);
+    } finally {
+      setIsRefreshing(false);
     }
-    setIsRefreshing(false);
-  }, [activeCategory, selectedIngredients]);
+  }, [activeCategory, cacheKey, selectedDate, selectedIngredients, seedIdeas]);
 
   // Update list when category changes
   useEffect(() => {
-    const filtered = INITIAL_DISHES.filter(d => d.category === activeCategory);
-    setDishes(filtered.slice(0, 3));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCategory]);
+    let isMounted = true;
+    const loadCached = async () => {
+      const cached = await getCookIdeasCache(cacheKey);
+      if (!isMounted) return;
+      if (cached && cached.length > 0) {
+        setDishes(cached);
+      } else {
+        seedIdeas(activeCategory);
+      }
+    };
+    loadCached();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeCategory, cacheKey, seedIdeas]);
+
+  useEffect(() => {
+    let isMounted = true;
+    getFavorites().then((favs) => {
+      if (!isMounted) return;
+      setFavoriteIds(new Set(favs.map((idea) => idea.id)));
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <div className="flex flex-col h-full bg-gray-50 max-w-screen-xl mx-auto px-4 sm:px-6">
@@ -130,7 +195,12 @@ export const CookTab: React.FC = () => {
               key={dish.id} 
               dish={dish} 
               layout={layoutMode} 
-              onClick={setSelectedDish} 
+              onClick={setSelectedDish}
+              isFavorite={favoriteIds.has(dish.id)}
+              onToggleFavorite={async (idea) => {
+                const next = await toggleFavorite(idea);
+                setFavoriteIds(new Set(next.map((fav) => fav.id)));
+              }}
             />
           ))}
           {dishes.length === 0 && !isRefreshing && (
@@ -155,7 +225,13 @@ export const CookTab: React.FC = () => {
       </div>
 
       {/* Detail Modal */}
-      <RecipeModal dish={selectedDish} onClose={() => setSelectedDish(null)} />
+      <RecipeModal
+        dish={selectedDish}
+        onClose={() => setSelectedDish(null)}
+        onFavoritesUpdated={(next) => {
+          setFavoriteIds(new Set(next.map((idea) => idea.id)));
+        }}
+      />
       <IngredientSelectorModal
         open={isIngredientSelectorOpen}
         onClose={() => setIsIngredientSelectorOpen(false)}

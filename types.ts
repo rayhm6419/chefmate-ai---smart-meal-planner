@@ -33,6 +33,23 @@ export interface Dish {
   category: Category;
   ingredients: string[];
   imageKey?: ImageKey;
+  steps?: string[];
+}
+
+export interface CookIdea {
+  id: string;
+  title: string;
+  shortDescription: string;
+  difficulty: string;
+  estimatedTime: number;
+  imageUrl?: string;
+  imageKey?: ImageKey;
+  videoUrl?: string;
+  ingredients: string[];
+  steps: string[];
+  calories?: number;
+  rating?: number;
+  category?: Category;
 }
 
 export interface AppState {
@@ -119,4 +136,3 @@ export interface DateInfo {
 }
 
 export type CuisineType = 'Cantonese' | 'Sichuan' | 'Fujian' | 'Hunan' | 'Jiangsu' | 'Zhejiang' | 'Anhui' | 'Shandong' | 'General';
-

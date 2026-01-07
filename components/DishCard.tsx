@@ -1,16 +1,18 @@
 
 import React from 'react';
-import { Dish } from '../types';
+import { CookIdea } from '../types';
 import { getRecipeImageUrl } from '../utils/recipeImageMap';
 import { RecipeThumbnail } from './RecipeThumbnail';
 
 interface DishCardProps {
-  dish: Dish;
-  onClick: (dish: Dish) => void;
+  dish: CookIdea;
+  onClick: (dish: CookIdea) => void;
   layout: 'list' | 'grid';
+  isFavorite?: boolean;
+  onToggleFavorite?: (idea: CookIdea) => void;
 }
 
-export const DishCard: React.FC<DishCardProps> = ({ dish, onClick, layout }) => {
+export const DishCard: React.FC<DishCardProps> = ({ dish, onClick, layout, isFavorite, onToggleFavorite }) => {
   const isGrid = layout === 'grid';
   const imageUrl = getRecipeImageUrl(dish);
 
@@ -25,12 +27,6 @@ export const DishCard: React.FC<DishCardProps> = ({ dish, onClick, layout }) => 
           imageUrl={imageUrl}
           className="group-hover:scale-105 transition-transform duration-500"
         />
-        {/* Play overlay for video-first feel */}
-        <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="bg-white/90 rounded-full w-10 h-10 flex items-center justify-center shadow-lg">
-            <i className="fa-solid fa-play text-orange-500 ml-1"></i>
-          </div>
-        </div>
       </div>
 
       <div className={`p-4 flex flex-col justify-between ${isGrid ? 'flex-1' : 'w-2/3 md:w-3/4'}`}>
@@ -38,21 +34,21 @@ export const DishCard: React.FC<DishCardProps> = ({ dish, onClick, layout }) => 
           <h3 className="font-bold text-gray-800 line-clamp-1 group-hover:text-orange-600 transition-colors">
             {dish.title}
           </h3>
-          <p className="text-xs text-gray-500 line-clamp-1 mt-1">{dish.description}</p>
+          <p className="text-xs text-gray-500 line-clamp-1 mt-1">{dish.shortDescription}</p>
         </div>
 
         <div className="flex items-center gap-4 mt-3">
           <div className="flex items-center text-[11px] font-medium text-gray-600">
             <i className="fa-regular fa-clock mr-1 text-gray-400"></i>
-            {dish.timeMins} min
+            {dish.estimatedTime} min
           </div>
           <div className="flex items-center text-[11px] font-medium text-gray-600">
             <i className="fa-solid fa-fire-flame-curved mr-1 text-gray-400"></i>
-            {dish.calories} kcal
+            {dish.calories ?? 0} kcal
           </div>
           <div className="flex items-center text-[11px] font-medium text-gray-600">
             <i className="fa-solid fa-star mr-1 text-yellow-400"></i>
-            {dish.rating}
+            {dish.rating ?? 0}
           </div>
         </div>
       </div>
