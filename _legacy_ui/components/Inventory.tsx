@@ -165,7 +165,7 @@ export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemo
   // Render List/Inventory View
   return (
     <>
-      <div className="flex flex-col h-full bg-slate-50">
+      <div className="flex flex-col h-[calc(100vh-220px)] bg-slate-50 pb-16">
         {/* Header */}
         <div className="p-6 pb-3 bg-white border-b border-slate-100 flex justify-between items-center gap-4 z-10 sticky top-0">
           <div className="flex-1 min-w-0">
@@ -249,7 +249,7 @@ export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAdd, onRemo
         )}
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50 pb-4">
+        <div className="flex-1 overflow-y-auto no-scrollbar p-6 bg-slate-50 pb-16">
           
           {isCustomizing && selectedCategory !== 'All' && currentStyle ? (
             /* Customization UI */

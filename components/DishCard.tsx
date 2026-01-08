@@ -19,9 +19,9 @@ export const DishCard: React.FC<DishCardProps> = ({ dish, onClick, layout, isFav
   return (
     <div 
       onClick={() => onClick(dish)}
-      className={`group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer border border-gray-100 flex ${isGrid ? 'flex-col' : 'flex-row h-32 md:h-40'}`}
+      className={`group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer border border-gray-100 flex ${isGrid ? 'flex-col' : 'flex-row items-stretch h-24 md:h-28'}`}
     >
-      <div className={`relative ${isGrid ? 'w-full aspect-[4/3]' : 'w-1/3 md:w-1/4'}`}>
+      <div className={`relative ${isGrid ? 'w-full aspect-[4/3]' : 'w-1/3 md:w-1/4 h-full'}`}>
         <RecipeThumbnail
           title={dish.title}
           imageUrl={imageUrl}
@@ -29,7 +29,7 @@ export const DishCard: React.FC<DishCardProps> = ({ dish, onClick, layout, isFav
         />
       </div>
 
-      <div className={`p-4 flex flex-col justify-between ${isGrid ? 'flex-1' : 'w-2/3 md:w-3/4'}`}>
+      <div className={`p-2 flex flex-col justify-between ${isGrid ? 'flex-1' : 'w-2/3 md:w-3/4'}`}>
         <div>
           <h3 className="font-bold text-gray-800 line-clamp-1 group-hover:text-orange-600 transition-colors">
             {dish.title}

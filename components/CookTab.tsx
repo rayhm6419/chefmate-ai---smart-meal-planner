@@ -35,7 +35,8 @@ export const CookTab: React.FC<CookTabProps> = ({ selectedDate }) => {
   );
 
   const seedIdeas = useCallback((category: Category) => {
-    const seeded = INITIAL_DISHES.filter((d) => d.category === category).map((dish: Dish) =>
+    const base = INITIAL_DISHES.filter((d) => d.category === category);
+    const seeded = base.map((dish: Dish) =>
       normalizeCookIdea(
         {
           id: dish.id,
@@ -52,7 +53,36 @@ export const CookTab: React.FC<CookTabProps> = ({ selectedDate }) => {
         { category }
       )
     );
-    setDishes(seeded.slice(0, 3));
+    if (seeded.length === 0) {
+      setDishes([]);
+      return;
+    }
+    const unique = seeded.slice(0, 3);
+    if (unique.length < 3) {
+      const fallbackPool = INITIAL_DISHES.filter((dish) => dish.category !== category);
+      for (const dish of fallbackPool) {
+        if (unique.length >= 3) break;
+        if (unique.some((idea) => idea.title === dish.title)) continue;
+        unique.push(
+          normalizeCookIdea(
+            {
+              id: dish.id,
+              title: dish.title,
+              shortDescription: dish.description,
+              estimatedTime: dish.timeMins,
+              difficulty: "Medium",
+              ingredients: dish.ingredients,
+              steps: dish.steps ?? [],
+              calories: dish.calories,
+              rating: dish.rating,
+              category: dish.category,
+            },
+            { category: dish.category }
+          )
+        );
+      }
+    }
+    setDishes(unique);
   }, []);
 
   const handleShuffle = useCallback(async () => {
@@ -66,8 +96,36 @@ export const CookTab: React.FC<CookTabProps> = ({ selectedDate }) => {
         { category: activeCategory }
       );
       if (newDishes.length > 0) {
-        setDishes(newDishes);
-        await setCookIdeasCache(cacheKey, newDishes);
+        const unique = newDishes.filter((idea, index, arr) => (
+          arr.findIndex((entry) => entry.id === idea.id || entry.title === idea.title) === index
+        ));
+        const filled = unique.slice(0, 3);
+        if (filled.length < 3) {
+          const fallbackPool = INITIAL_DISHES.filter((dish) => dish.category !== activeCategory);
+          for (const dish of fallbackPool) {
+            if (filled.length >= 3) break;
+            if (filled.some((idea) => idea.title === dish.title)) continue;
+            filled.push(
+              normalizeCookIdea(
+                {
+                  id: dish.id,
+                  title: dish.title,
+                  shortDescription: dish.description,
+                  estimatedTime: dish.timeMins,
+                  difficulty: "Medium",
+                  ingredients: dish.ingredients,
+                  steps: dish.steps ?? [],
+                  calories: dish.calories,
+                  rating: dish.rating,
+                  category: dish.category,
+                },
+                { category: dish.category }
+              )
+            );
+          }
+        }
+        setDishes(filled);
+        await setCookIdeasCache(cacheKey, filled);
       } else {
         seedIdeas(activeCategory);
       }
@@ -86,7 +144,35 @@ export const CookTab: React.FC<CookTabProps> = ({ selectedDate }) => {
       const cached = await getCookIdeasCache(cacheKey);
       if (!isMounted) return;
       if (cached && cached.length > 0) {
-        setDishes(cached);
+        const unique = cached.filter((idea, index, arr) => (
+          arr.findIndex((entry) => entry.id === idea.id || entry.title === idea.title) === index
+        ));
+        const filled = unique.slice(0, 3);
+        if (filled.length < 3) {
+          const fallbackPool = INITIAL_DISHES.filter((dish) => dish.category !== activeCategory);
+          for (const dish of fallbackPool) {
+            if (filled.length >= 3) break;
+            if (filled.some((idea) => idea.title === dish.title)) continue;
+            filled.push(
+              normalizeCookIdea(
+                {
+                  id: dish.id,
+                  title: dish.title,
+                  shortDescription: dish.description,
+                  estimatedTime: dish.timeMins,
+                  difficulty: "Medium",
+                  ingredients: dish.ingredients,
+                  steps: dish.steps ?? [],
+                  calories: dish.calories,
+                  rating: dish.rating,
+                  category: dish.category,
+                },
+                { category: dish.category }
+              )
+            );
+          }
+        }
+        setDishes(filled);
       } else {
         seedIdeas(activeCategory);
       }
@@ -109,7 +195,7 @@ export const CookTab: React.FC<CookTabProps> = ({ selectedDate }) => {
   }, []);
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 max-w-screen-xl mx-auto px-4 sm:px-6">
+    <div className="flex flex-col h-full bg-gray-50 max-w-screen-xl mx-auto px-4 sm:px-6 pb-52">
       {/* Category Selector */}
       <div className="mt-6 mb-6">
         <h1 className="text-2xl font-extrabold text-gray-800 mb-4 tracking-tight">What should I eat?</h1>
@@ -172,6 +258,13 @@ export const CookTab: React.FC<CookTabProps> = ({ selectedDate }) => {
       {/* View Toggle (Hidden on very small screens, desktop focus) */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Suggestions for you</h2>
+        <button
+          onClick={handleShuffle}
+          disabled={isRefreshing}
+          className="text-xs font-bold text-orange-600 hover:underline disabled:opacity-50"
+        >
+          {isRefreshing ? 'Thinking...' : 'Shuffle ideas'}
+        </button>
         <div className="hidden sm:flex items-center bg-gray-200/50 p-1 rounded-lg">
           <button 
             onClick={() => setLayoutMode('list')}
@@ -189,7 +282,7 @@ export const CookTab: React.FC<CookTabProps> = ({ selectedDate }) => {
       </div>
 
       {/* Dish List/Grid */}
-      <div className={`flex-1 transition-opacity duration-300 ${isRefreshing ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+      <div className={`flex-1 transition-opacity duration-300 pb-20 ${isRefreshing ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
         <div className={layoutMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
           {dishes.map((dish) => (
             <DishCard 
@@ -213,17 +306,7 @@ export const CookTab: React.FC<CookTabProps> = ({ selectedDate }) => {
         </div>
       </div>
 
-      {/* Regenerate Action */}
-      <div className="mt-8 mb-4">
-        <button 
-          onClick={handleShuffle}
-          disabled={isRefreshing}
-          className="w-full bg-white hover:bg-gray-50 text-gray-700 font-bold py-4 rounded-3xl shadow-sm border border-gray-200 transition-all flex items-center justify-center gap-2 group active:scale-95 disabled:opacity-50"
-        >
-          <i className={`fa-solid fa-rotate ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'} text-orange-500`}></i>
-          {isRefreshing ? 'Thinking...' : 'Shuffle ideas'}
-        </button>
-      </div>
+      <div className="h-4"></div>
 
       {/* Detail Modal */}
       <RecipeModal

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { CookIdea } from "../types";
 import { getRecipeVideoUrl } from "../utils/recipeVideoMap";
+import { X } from "lucide-react";
 import { getRecipeImageUrl } from "../utils/recipeImageMap";
 import { RecipeThumbnail } from "./RecipeThumbnail";
 
@@ -83,6 +84,10 @@ export const CookingModal: React.FC<CookingModalProps> = ({
     setStepIndex((prev) => Math.min(prev + 1, totalSteps - 1));
   };
 
+  const handlePrevStep = () => {
+    setStepIndex((prev) => Math.max(prev - 1, 0));
+  };
+
   return (
     <div className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm transition-all animate-fade-in">
       <div className="bg-white w-full max-w-lg rounded-t-[40px] sm:rounded-[40px] overflow-hidden shadow-2xl animate-slide-up">
@@ -103,8 +108,10 @@ export const CookingModal: React.FC<CookingModalProps> = ({
           <button
             onClick={onClose}
             className="absolute top-6 right-6 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-colors"
+            aria-label="Close"
+            type="button"
           >
-            <i className="fa-solid fa-xmark"></i>
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -121,17 +128,23 @@ export const CookingModal: React.FC<CookingModalProps> = ({
 
           <div className="flex gap-3">
             <button
-              onClick={onClose}
-              className="flex-1 border border-gray-200 text-gray-700 font-bold py-4 rounded-3xl bg-white hover:bg-gray-50 transition-colors"
+              onClick={handlePrevStep}
+              disabled={stepIndex === 0}
+              className="flex-1 border border-gray-200 text-gray-700 font-bold py-4 rounded-3xl bg-white hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Back
             </button>
             <button
-              onClick={handleNextStep}
-              disabled={stepIndex >= totalSteps - 1}
+              onClick={() => {
+                if (stepIndex >= totalSteps - 1) {
+                  onClose();
+                  return;
+                }
+                handleNextStep();
+              }}
               className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-3xl shadow-xl shadow-orange-200 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Next Step
+              {stepIndex >= totalSteps - 1 ? "Finish" : "Next Step"}
             </button>
           </div>
         </div>
